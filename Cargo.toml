@@ -4,8 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+libspa = "0.8.0"
 log = "0.4.27"
 pipewire = "0.8.0"
+prettytable = "0.10.0"
 rodio = "0.20.1"
 simplelog = {version = "0.12.2", features = ["paris"]}
 thiserror = "2.0.12"

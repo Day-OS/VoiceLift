@@ -1,71 +1,54 @@
-use std::fs;
-
-use pipewire;
-use rodio::Sink;
-use rodio::{
-    cpal::{self, traits::HostTrait},
-    Decoder, DeviceTrait, OutputStream,
+use libspa::utils::dict::DictRef;
+use log::LevelFilter;
+use pipewire as pw;
+use pipewire::registry::GlobalObject;
+use pipewire_manager::PipeWireManager;
+use simplelog::{
+    ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode,
 };
-use simplelog::*;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 mod pipewire_manager;
-use pipewire_manager::scan_devices::scan_devices;
+
 fn main() {
-    CombinedLogger::init(
-        vec![
-            TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
-        ]
-    ).unwrap();
+    CombinedLogger::init(vec![TermLogger::new(
+        LevelFilter::Debug,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )])
+    .unwrap();
+    // Initialize PipeWire
+    let manager = PipeWireManager::default();
 
-    let crate_name = "voice_lift";
-    let alsa_output_name = format!("alsa_playback.{}", crate_name);
-    let selected_mic = "NoiseTorch Microphone for Trust GXT 232 Microphone";
-    let host = cpal::default_host();
-    let microphone: rodio::Device = host.default_input_device().unwrap().into();
-    let (outstream, handle) = OutputStream::try_from_device(&microphone).unwrap();
-    let audio_sink = Sink::try_new(&handle).unwrap();
-    audio_sink.volume();
-    audio_sink.play();
-    let file = fs::File::open("/home/dani/Músicas/sem-título.mp3").unwrap();
-    let source = Decoder::new(file.try_clone().unwrap()).unwrap();
-    audio_sink.append(source);
+    // Wait for 2 seconds
+    thread::sleep(Duration::from_secs(2));
 
-    //pw_link::get_input_devices()
+    log::info!("Finished Loading!");
+    let mut objects = manager.objects.lock().unwrap();
+    objects.nodes.iter().for_each(|node| {
+        log::info!("Node ID: {}, Node Name: {}", node.id, node.name);
+    });
+    let microphone =  objects.find_node_by_name("NoiseTorch Microphone for Trust GXT 232 Microphone").cloned();
+    let source = objects.find_node_by_name("Firefox").cloned();
 
-    let devices = scan_devices().unwrap(); // Assuming scan_devices is a function that returns Result<Vec<HashMap<String, String>>, ScanDeviceError> from pipewire_manager/command.rs
-    println!("Scanned devices:");
-    for device in devices {
-        println!("{device:?}");
+
+    if microphone.is_none() || source.is_none() {
+        log::error!("Microphone or Source not found!");
+        return;
     }
-    // let mut output_device: Option<OutputDevice> = None;
-    // let mut input_device: Option<InputDevice> = None;
 
-    // for device in pw_link::get_output_devices().unwrap() {
-    //     if device.audio_device.name == alsa_output_name {
-    //         output_device = Some(device);
-    //         break;
-    //     }
-    // }
+    let mut microphone = microphone.unwrap();
+    let mut source = source.unwrap();
 
-    // for device in pw_link::get_input_devices().unwrap() {
-    //     if device.audio_device.name == selected_mic {
-    //         input_device = Some(device);
-    //         break;
-    //     }
-    // }
+    log::info!("Microphone: {:?}", microphone.name);
+    log::info!("Source: {:?}", source.name);
 
-    // if output_device.is_none() || input_device.is_none() {
-    //     panic!(
-    //         "No devices were found | Output: {:?} | Input: {:?}",
-    //         output_device, input_device
-    //     )
-    // }
-    // println!("Output: {:?} | Input: {:?}", output_device, input_device);
+    source.link_device(microphone);
 
-    // output_device.unwrap().link(&input_device.unwrap());
 
-    // while true {}
-    // //audio_sink.stop();
-    // //let sink = Sink::try_new(microphone);
-    // println!("{:?}", microphone.name());
+    manager._main_thread.join().unwrap();
 }
