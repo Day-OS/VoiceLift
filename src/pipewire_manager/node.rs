@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{rc::Rc, sync::Mutex};
 
 use crate::pipewire_manager::port::PortDirection;
 
@@ -96,7 +96,7 @@ impl Node {
 
     pub fn link_device(
         &mut self,
-        core: Arc<Mutex<pipewire::core::Core>>,
+        core: Rc<Mutex<pipewire::core::Core>>,
         input_device: Self,
     ) -> Result<(), NodeError> {
         log::debug!(
@@ -163,7 +163,7 @@ impl Node {
             .ports
             .iter()
             .find(|p| p.direction == PortDirection::Out);
-        if let None = first_port {
+        if first_port.is_none() {
             log::warn!("No output port found in node {}", self.name);
             return Err(NodeError::IncorrectTypeOfChannelDirection(
                 input_device.name.clone(),
@@ -175,7 +175,7 @@ impl Node {
             if other_port.direction != PortDirection::In {
                 continue;
             }
-            first_port.link_port(core.clone(), &other_port)?;
+            first_port.link_port(core.clone(), other_port)?;
         }
         Ok(())
     }

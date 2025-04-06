@@ -1,13 +1,8 @@
-use libspa::utils::dict::DictRef;
 use log::LevelFilter;
-use pipewire as pw;
-use pipewire::registry::GlobalObject;
 use pipewire_manager::PipeWireManager;
 use simplelog::{
     ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode,
 };
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 

@@ -7,7 +7,7 @@ use pipewire::channel;
 use pipewire::core::Core;
 use pipewire::registry::GlobalObject;
 use port::Port;
-use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -69,8 +69,8 @@ impl PipeWireManager {
             let nodes_clone_remove = nodes.clone();
             let nodes_clone_event = nodes.clone();
 
-            let core_mutex: Arc<Mutex<Core>> =
-                Arc::new(Mutex::new(core));
+            let core_mutex: Rc<Mutex<Core>> =
+            Rc::new(Mutex::new(core));
 
             // Add registry listener
             let _listener = registry
@@ -152,7 +152,9 @@ impl PipeWireManager {
     }
 
     fn _raise_event(&self, event: PipeWireEvent) {
-        let a = self._sender.send(event).unwrap();
+        if let Err(e) =  self._sender.send(event){
+            log::error!("Failed to send event: {:?}", e);
+        }
     }
 
     pub fn link_nodes(

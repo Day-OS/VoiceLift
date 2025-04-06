@@ -3,18 +3,10 @@ use std::collections::HashMap;
 use super::node::Node;
 use super::port::Port;
 
+#[derive(Default)]
 pub struct PipeWireObjects {
     pub(crate) nodes: Vec<Node>,
     pub(super) ports_to_be_added: Vec<Port>,
-}
-
-impl Default for PipeWireObjects {
-    fn default() -> Self {
-        Self {
-            ports_to_be_added: Default::default(),
-            nodes: Default::default(),
-        }
-    }
 }
 
 impl PipeWireObjects {
@@ -36,8 +28,7 @@ impl PipeWireObjects {
         }
 
         let mut ports_not_found: Vec<Port> = vec![];
-        while self.ports_to_be_added.len() > 0 {
-            let port = self.ports_to_be_added.pop().unwrap();
+        while let Some(port) = self.ports_to_be_added.pop() {
 
             let port_id = port.id;
             let node_id = port.node_id;
@@ -86,24 +77,14 @@ impl PipeWireObjects {
     // That means that it will scan all nodes and all their ports
     // and return the node if it finds it
     pub fn find_node_by_id(&mut self, id: u32) -> Option<&mut Node> {
-        for node in self.nodes.iter_mut() {
-            if node.id == id || node.has_port_of_id(id) {
-                return Some(node);
-            }
-        }
-        return None;
+        self.nodes.iter_mut().find(|node| node.id == id || node.has_port_of_id(id))
     }
 
     pub fn find_node_by_name(
         &mut self,
         name: &str,
     ) -> Option<&mut Node> {
-        for node in self.nodes.iter_mut() {
-            if node.name == name {
-                return Some(node);
-            }
-        }
-        None
+        self.nodes.iter_mut().find(|node| node.name == name)
     }
 
     pub fn remove_node(&mut self, id: u32) {

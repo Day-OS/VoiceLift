@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{rc::Rc, sync::{Arc, Mutex}};
 
 use pipewire::core::Core;
 
@@ -20,12 +20,18 @@ impl PipeWireEvent {
     pub fn handle(
         &self,
         objects: Arc<Mutex<PipeWireObjects>>,
-        core: Arc<Mutex<Core>>,
+        core: Rc<Mutex<Core>>,
     ) {
         log::debug!("Handling PipeWireEvent: {:#?}", self);
         match self {
             PipeWireEvent::LinkCommand(input_id, target_id) => {
-                let mut objects = objects.lock().unwrap();
+                let objects = objects.lock();
+                if let Err(e) = objects {
+                    log::error!("Failed to lock objects: {}", e);
+                    return;
+                }
+                let mut objects = objects.unwrap();
+
                 // Implement the logic to handle the link command
                 // This might involve finding the nodes and ports by their IDs and linking them
                 // For example:
@@ -40,7 +46,9 @@ impl PipeWireEvent {
 
                 let mut input_node = input_node.unwrap();
                 let target_node = target_node.unwrap();
-                let _result = input_node.link_device(core, target_node.clone()).unwrap();
+                if let Err(e) = input_node.link_device(core, target_node.clone()){
+                    log::error!("Failed to link devices: {}", e);
+                }
             }
         }
     }

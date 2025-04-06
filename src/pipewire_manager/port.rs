@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{rc::Rc, sync::Mutex};
 
 use super::utils::{val, val_or, UNKNOWN_STR};
 use libspa::utils::dict::DictRef;
@@ -14,6 +14,7 @@ pub enum PortError {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum AudioChannel {
     MONO,
     FL,  // Front Left
@@ -69,6 +70,7 @@ impl PortDirection {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Port {
     pub id: u32,
     pub name: String,
@@ -122,7 +124,7 @@ impl Port {
     /// Connect the current port into another, assuming that the other port is an input port.
     pub fn link_port(
         &self,
-        core: Arc<Mutex<pipewire::core::Core>>,
+        core: Rc<Mutex<pipewire::core::Core>>,
         target_port: &Self,
     ) -> Result<(), PortError> {
         if self.direction != PortDirection::Out {
