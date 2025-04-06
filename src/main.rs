@@ -29,26 +29,21 @@ fn main() {
 
     log::info!("Finished Loading!");
     let mut objects = manager.objects.lock().unwrap();
-    objects.nodes.iter().for_each(|node| {
-        log::info!("Node ID: {}, Node Name: {}", node.id, node.name);
-    });
-    let microphone =  objects.find_node_by_name("NoiseTorch Microphone for Trust GXT 232 Microphone").cloned();
-    let source = objects.find_node_by_name("Firefox").cloned();
 
+    objects.print_nodes();
 
-    if microphone.is_none() || source.is_none() {
-        log::error!("Microphone or Source not found!");
-        return;
-    }
+    let microphone = objects
+        .find_node_by_name("input.filter-chain-924-13")
+        .unwrap()
+        .id;
+    let source = objects.find_node_by_name("spotify").unwrap().id;
 
-    let mut microphone = microphone.unwrap();
-    let mut source = source.unwrap();
+    std::mem::drop(objects);
+    log::info!("Found nodes: {microphone} and {source}");
 
-    log::info!("Microphone: {:?}", microphone.name);
-    log::info!("Source: {:?}", source.name);
+    manager.link_nodes(source, microphone);
 
-    source.link_device(microphone);
-
+    log::info!("Event Sent");
 
     manager._main_thread.join().unwrap();
 }

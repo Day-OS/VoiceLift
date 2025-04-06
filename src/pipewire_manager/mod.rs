@@ -4,6 +4,7 @@ use node::Node;
 use objects::PipeWireObjects;
 use pipewire as pw;
 use pipewire::channel;
+use pipewire::core::Core;
 use pipewire::registry::GlobalObject;
 use port::Port;
 use std::collections::HashMap;
@@ -65,13 +66,20 @@ impl PipeWireManager {
 
             // Clone for use in callback
             let nodes_clone = nodes.clone();
-            let nodes_clone_remove = nodes_clone.clone();
+            let nodes_clone_remove = nodes.clone();
+            let nodes_clone_event = nodes.clone();
+
+            let core_mutex: Arc<Mutex<Core>> =
+                Arc::new(Mutex::new(core));
 
             // Add registry listener
             let _listener = registry
                 .add_listener_local()
                 .global(move |global| {
-                    Self::_pw_event_handler(global, &nodes_clone)
+                    Self::_pw_event_handler(
+                        global,
+                        &nodes_clone.clone(),
+                    )
                 })
                 .global_remove(move |object_id| {
                     Self::pw_remove_event_handler(
@@ -81,18 +89,22 @@ impl PipeWireManager {
                 })
                 .register();
 
-            _ = _receiver.attach(mainloop.loop_(), {
-                let mainloop = mainloop.clone();
-                move |_| mainloop.quit()
-            });
+            let _receiver =
+                _receiver.attach(mainloop.loop_(), move |event| {
+                    log::debug!("Handling PipeWireEvent");
 
-            // let timer = mainloop.loop_().add_timer(move |_| {
-            //     _sender.send(String::from("Hello"));
-            // });
-            // timer.update_timer(
-            //     Some(Duration::from_millis(1)), // Send the first message immediately
-            //     Some(Duration::from_millis(100)),
-            // );
+                    let objects = nodes_clone_event.clone();
+                    let core = core_mutex.clone();
+                    event.handle(objects, core)
+                });
+
+            let timer = mainloop.loop_().add_timer(move |_| {
+                let _ = _sender.send(event::ConnectorEvent::None);
+            });
+            timer.update_timer(
+                Some(Duration::from_millis(1)), // Send the first message immediately
+                Some(Duration::from_millis(100)),
+            );
 
             // Process events to populate nodes
             mainloop.run();
@@ -112,8 +124,12 @@ impl PipeWireManager {
             pw::types::ObjectType::Port => {
                 let port = Port::new(global);
                 objects_guard.ports_to_be_added.push(port);
+                log::info!("Received PORT event: {:?} \n{:#?}", global, global.props)
+
             }
-            _ => {}
+            _ => {
+                log::info!("Received non-handled event: {:?} \n{:#?}", global.type_, global.props)
+            }
         }
         objects_guard.update_nodes();
     }
@@ -135,11 +151,18 @@ impl PipeWireManager {
         }
     }
 
-    fn _raise_event(&self, event: PipeWireEvent){
-        self._sender.send(event).unwrap();
+    fn _raise_event(&self, event: PipeWireEvent) {
+        let a = self._sender.send(event).unwrap();
     }
 
-    fn link_nodes(&self, first_node_id: u32, second_node_id: u32){
-        self._raise_event(PipeWireEvent::LinkCommand(first_node_id, second_node_id))
+    pub fn link_nodes(
+        &self,
+        first_node_id: u32,
+        second_node_id: u32,
+    ) {
+        self._raise_event(PipeWireEvent::LinkCommand(
+            first_node_id,
+            second_node_id,
+        ))
     }
 }

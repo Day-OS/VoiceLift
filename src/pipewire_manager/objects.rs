@@ -46,6 +46,11 @@ impl PipeWireObjects {
                 if node.0.has_port(&port) {
                     continue;
                 }
+                log::debug!(
+                    "Adding port {} to node {}",
+                    port_id,
+                    node_id
+                );
                 node.0.add_port(port);
                 node.1 = true;
             } else {
@@ -53,6 +58,10 @@ impl PipeWireObjects {
                 ports_not_found.push(port);
             }
         }
+
+        // If the port was not found, then we reintegrate it into our ports_to_be_added list
+        // That makes sure that it will not be deleted at this time
+        self.ports_to_be_added.extend(ports_not_found);
 
         for (_, (node, updated)) in nodes.iter() {
             if !updated {
@@ -85,7 +94,10 @@ impl PipeWireObjects {
         return None;
     }
 
-    pub fn find_node_by_name(&mut self, name: &str) -> Option<&mut Node> {
+    pub fn find_node_by_name(
+        &mut self,
+        name: &str,
+    ) -> Option<&mut Node> {
         for node in self.nodes.iter_mut() {
             if node.name == name {
                 return Some(node);
@@ -100,5 +112,11 @@ impl PipeWireObjects {
         {
             self.nodes.remove(index);
         }
+    }
+
+    pub fn print_nodes(&self) {
+        self.nodes.iter().for_each(|node| {
+            log::info!("=======================\nNode ID: {}, \nNode Name: {} \nNode Description {:?} \nPorts: {:?}", node.id, node.name, node.description, node.get_port_names());
+        });
     }
 }

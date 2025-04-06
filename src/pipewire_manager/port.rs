@@ -93,7 +93,7 @@ impl Port {
         let audio_channel =
             val_or(props, "audio.channel", UNKNOWN_STR);
         let port = Port {
-            id: val(props, "port.id").parse().unwrap_or(u32::MAX),
+            id: port_dict.id,
             name: val(props, "port.name"),
             direction: PortDirection::from_str(&val(
                 props,
@@ -111,8 +111,10 @@ impl Port {
             audio_channel: AudioChannel::from_str(&audio_channel),
         };
         log::debug!(
-            "Creating new Port from global object: {:?}",
-            port.name
+            "Creating new Port from global object: {:?}({:?} | N_ID: {:?})",
+            port.name,
+            port.id,
+            port.node_id
         );
         port
     }
@@ -120,39 +122,44 @@ impl Port {
     /// Connect the current port into another, assuming that the other port is an input port.
     pub fn link_port(
         &self,
-        input_port: &Self,
         core: Arc<Mutex<pipewire::core::Core>>,
+        target_port: &Self,
     ) -> Result<(), PortError> {
         if self.direction != PortDirection::Out {
             return Err(PortError::LinkError(
                 self.name.clone(),
-                input_port.name.clone(),
+                target_port.name.clone(),
                 format!("{} is not an output port", self.name),
             ));
         }
-        if input_port.direction != PortDirection::In {
+        if target_port.direction != PortDirection::In {
             return Err(PortError::LinkError(
                 self.name.clone(),
-                input_port.name.clone(),
+                target_port.name.clone(),
                 format!("{} is not an input port", self.name),
             ));
         }
         let core = core.lock().expect("Failed to lock core");
 
-        core.create_object::<pipewire::link::Link>(
+        if let Err(e) = core.create_object::<pipewire::link::Link>(
             "link-factory",
             &pipewire::properties::properties! {
-                "link.output.port" => self.node_id.to_string(),
-                "link.input.port" => input_port.id.to_string(),
                 "link.output.node" => self.node_id.to_string(),
-                "link.input.node" => input_port.node_id.to_string(),
+                "link.output.port" => self.id.to_string(),
+                "link.input.node" => target_port.node_id.to_string(),
+                "link.input.port" => target_port.id.to_string(),
+                "object.linger" => "1"
             },
-        );
+        ){
+            log::warn!("Failed to create link: {}", e);
+        }
 
         log::debug!(
-            "Port {} linked to port {}",
+            "Port {}({}) linked to port {}({})",
             self.name,
-            input_port.name
+            self.id,
+            target_port.name,
+            target_port.id
         );
 
         Ok(())
@@ -161,6 +168,11 @@ impl Port {
 
 impl Drop for Port {
     fn drop(&mut self) {
-        log::debug!("Port {}({}) was removed", self.name, self.id);
+        log::debug!(
+            "Port {}({} | N_ID: {}) was removed",
+            self.name,
+            self.id,
+            self.node_id
+        );
     }
 }

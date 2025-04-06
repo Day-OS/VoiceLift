@@ -1,14 +1,26 @@
 use std::sync::{Arc, Mutex};
 
+use crate::pipewire_manager::port::PortDirection;
+
 use super::{
-    port::Port,
+    port::{Port, PortError},
     utils::{val, val_opt},
 };
 use libspa::utils::dict::DictRef;
 use pipewire::permissions::PermissionFlags;
 use pipewire::registry::GlobalObject;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum NodeError {
+    #[error("")]
+    PortError(#[from] PortError),
+    #[error("Node {0} does not have a port with direction {1:?}")]
+    IncorrectTypeOfChannelDirection(String, PortDirection),
+}
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Node {
     pub id: u32,
     pub name: String,
@@ -65,9 +77,11 @@ impl Node {
         self.ports.iter().map(|port| port.name.clone()).collect()
     }
 
+    #[allow(dead_code)]
     pub fn get_port_by_id(&mut self, port_id: u32) -> Option<&Port> {
         self.ports.iter().find(|port| port.id == port_id)
     }
+    
     pub fn add_port(&mut self, port: Port) {
         self.ports.push(port.clone());
     }
@@ -80,9 +94,90 @@ impl Node {
         self.ports.iter().any(|p| p.id == port_id)
     }
 
-    pub fn link_device(&mut self, input_device: Self) {
+    pub fn link_device(
+        &mut self,
+        core: Arc<Mutex<pipewire::core::Core>>,
+        input_device: Self,
+    ) -> Result<(), NodeError> {
+        log::debug!(
+            "Linking device \"{}\" to \"{}\"",
+            self.name,
+            input_device.name
+        );
 
-        // Implement the logic to link this node to another node
+        // First we verify if self contains output ports
+        if !self
+            .ports
+            .iter()
+            .any(|port| port.direction == PortDirection::Out)
+        {
+            log::error!(
+                "Node \"{}\" does not have any output ports",
+                self.name
+            );
+            return Err(NodeError::IncorrectTypeOfChannelDirection(
+                self.name.clone(),
+                PortDirection::Out,
+            ));
+        }
+
+        // Then we verify if input_device contains input ports
+        if !input_device
+            .ports
+            .iter()
+            .any(|port| port.direction == PortDirection::In)
+        {
+            log::error!("Node \"{}\" does not have any input ports | Available Ports: {:#?}", input_device.name, input_device.ports);
+            return Err(NodeError::IncorrectTypeOfChannelDirection(
+                input_device.name.clone(),
+                PortDirection::In,
+            ));
+        }
+
+        let mut were_matching_ports_found = false;
+
+        // First we check if the two nodes have the same ammount
+        // of channels and the same audio channels
+        if self.ports.len() == input_device.ports.len() {
+            for port in self.ports.iter() {
+                if port.direction == PortDirection::In {
+                    continue;
+                }
+                let matching_port = input_device
+                    .ports
+                    .iter()
+                    .find(|p| p.audio_channel == port.audio_channel);
+                if matching_port.is_none() {
+                    continue;
+                }
+                port.link_port(core.clone(), matching_port.unwrap())?;
+                were_matching_ports_found = true;
+            }
+        }
+        if were_matching_ports_found {
+            return Ok(());
+        }
+
+        // If no matching ports were found, we try to link the first output port in the node to the first input port in the input device
+        let first_port = self
+            .ports
+            .iter()
+            .find(|p| p.direction == PortDirection::Out);
+        if let None = first_port {
+            log::warn!("No output port found in node {}", self.name);
+            return Err(NodeError::IncorrectTypeOfChannelDirection(
+                input_device.name.clone(),
+                PortDirection::In,
+            ));
+        }
+        let first_port = first_port.unwrap();
+        for other_port in input_device.ports.iter() {
+            if other_port.direction != PortDirection::In {
+                continue;
+            }
+            first_port.link_port(core.clone(), &other_port)?;
+        }
+        Ok(())
     }
 }
 impl Drop for Node {
