@@ -17,16 +17,27 @@ pub enum PortError {
 #[allow(clippy::upper_case_acronyms)]
 pub enum AudioChannel {
     MONO,
-    FL,  // Front Left
-    FR,  // Front Right
-    FC,  // Front Center
-    LFE, // Subwoofer
-    SL,  // Side Left
-    SR,  // Side Right
-    RL,  // Rear Left
-    RR,  // Rear Right
-    TFL, // Top Front Left (Atmos)
-    TFR, // Top Front Right (Atmos)
+    /// Front Left
+    FL,  
+    /// Front Right
+    FR,  
+    /// Front Center
+    FC,  
+    /// Subwoofer
+    LFE, 
+    /// Side Left
+    SL,  
+    /// Side Right
+    SR,  
+    /// Rear Left
+    RL,  
+    /// Rear Right
+    RR,  
+    /// Top Front Left (Atmos)
+    TFL, 
+    /// Top Front Right (Atmos)
+    TFR, 
+    /// In case the channel is unknown
     Unknown,
 }
 impl AudioChannel {
@@ -69,7 +80,7 @@ impl PortDirection {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct Port {
     pub id: u32,

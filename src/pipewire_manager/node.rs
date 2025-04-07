@@ -19,7 +19,7 @@ pub enum NodeError {
     IncorrectTypeOfChannelDirection(String, PortDirection),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct Node {
     pub id: u32,
@@ -83,7 +83,7 @@ impl Node {
     }
     
     pub fn add_port(&mut self, port: Port) {
-        self.ports.push(port.clone());
+        self.ports.push(port);
     }
 
     pub fn has_port(&self, port: &Port) -> bool {
@@ -97,7 +97,7 @@ impl Node {
     pub fn link_device(
         &mut self,
         core: Rc<Mutex<pipewire::core::Core>>,
-        input_device: Self,
+        input_device: &mut Self,
     ) -> Result<(), NodeError> {
         log::debug!(
             "Linking device \"{}\" to \"{}\"",

@@ -37,6 +37,8 @@ fn main() {
     log::info!("Found nodes: {microphone} and {source}");
 
     manager.link_nodes(source, microphone);
+    manager.unlink_nodes(source, microphone);
+
 
     log::info!("Event Sent");
 
