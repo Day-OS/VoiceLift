@@ -29,14 +29,19 @@ impl Link {
         );
         node
     }
-    pub fn remove_link(&mut self, registry: Rc<Mutex<Registry>>){
+    pub async fn remove_link(&mut self, registry: Rc<Mutex<Registry>>){
         let registry = registry.lock();
         if let Err(e) = registry {
             log::error!("Failed to lock registry: {}", e);
             return;
         }
         let registry = registry.unwrap();
-        registry.destroy_global(self.id);
+        let result = registry.destroy_global(self.id).into_async_result();
+        if let Err(e) = result {
+            log::error!("Failed to destroy global object: {}", e);
+        } else {
+            log::info!("Successfully destroyed global object: {}", self.id);
+        }
     }
 }
 

@@ -7,7 +7,7 @@ use pipewire::registry::Registry;
 use super::node::Node;
 use super::port::Port;
 use super::link::Link;
-
+use futures::executor;
 #[derive(Default)]
 pub struct PipeWireObjects {
     pub(crate) nodes: Vec<Node>,
@@ -127,7 +127,7 @@ impl PipeWireObjects {
             self.nodes.remove(index);
         }
     }
-
+    #[allow(dead_code)]
     pub fn print_nodes(&self) {
         self.nodes.iter().for_each(|node| {
             log::info!("=======================\nNode ID: {}, \nNode Name: {} \nNode Description {:?} \nPorts: {:?}", node.id, node.name, node.description, node.get_port_names());
@@ -136,15 +136,35 @@ impl PipeWireObjects {
     /// Removes a link from the list of links and optionally from the registry. 
     /// If registry is None, then it will not remove the link from the registry.
     pub fn remove_link(&mut self, id:u32, registry: Option<Rc<Mutex<Registry>>>){
-        let link = self.links.iter_mut().find(|link| link.id != id);
+        let link = self.find_links_by_id_mut(id);
         if link.is_none() {
             log::error!("Failed to find link with id {}", id);
             return;
         }
-        if registry.is_some() { 
+        
+        // Log what node is being removed from what node;
+        let link = link.unwrap();
+        let input_node  = link.input_node;
+        let output_node = link.output_node;
+
+        let (first_node, second_node) = self.find_two_nodes_by_id_mut(input_node, output_node);
+        
+        // In case this fails, it means that one of the nodes were deleted earlier.
+        if !first_node.is_none() && !second_node.is_none() {
+            let first_node = first_node.unwrap();
+            let second_node = second_node.unwrap();
+            log::debug!("Removing the link between node {} and node {}", first_node.name, second_node.name); 
+            let link = self.find_links_by_id_mut(id);
             let link = link.unwrap();
-            link.remove_link(registry.unwrap()); 
-        }
+            if registry.is_some() { 
+                executor::block_on(
+                    link.remove_link(registry.unwrap())
+                );
+            }   
+        } 
+        
+        
+        
         let index = self.links.iter().position(|link| link.id == id).unwrap(); 
         self.links.remove(index);
     }

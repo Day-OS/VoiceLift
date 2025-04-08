@@ -1,4 +1,4 @@
-use event::PipeWireEvent;
+use event::{ConnectorEvent, PipeWireEvent};
 use libspa::utils::dict::DictRef;
 use link::Link;
 use node::Node;
@@ -9,6 +9,7 @@ use pipewire::core::Core;
 use pipewire::registry::{GlobalObject, Registry};
 use port::Port;
 use std::rc::Rc;
+use std::sync::mpsc::TryRecvError;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 mod event;
@@ -23,6 +24,7 @@ pub struct PipeWireManager {
     pub _main_thread: thread::JoinHandle<()>,
     pub _receiver: mpsc::Receiver<event::ConnectorEvent>,
     _sender: channel::Sender<event::PipeWireEvent>,
+    pub _event_locker: Arc<Mutex<()>>,
 }
 
 impl Default for PipeWireManager {
@@ -33,21 +35,26 @@ impl Default for PipeWireManager {
             channel::channel::<event::PipeWireEvent>();
         // Store nodes in thread-safe container
         let nodes = Arc::new(Mutex::new(PipeWireObjects::default()));
+        let event_locker = Arc::new(Mutex::new(()));
+        
         Self {
             objects: nodes.clone(),
             _main_thread: Self::_start_thread(
+                event_locker.clone(),
                 main_sender,
                 pw_receiver,
                 nodes.clone(),
             ),
             _receiver: main_receiver,
             _sender: pw_sender,
+            _event_locker: event_locker,
         }
     }
 }
 
 impl PipeWireManager {
     fn _start_thread(
+        _event_locker: Arc<Mutex<()>>,
         _sender: mpsc::Sender<event::ConnectorEvent>,
         _receiver: channel::Receiver<event::PipeWireEvent>,
         nodes: Arc<Mutex<PipeWireObjects>>,
@@ -84,6 +91,7 @@ impl PipeWireManager {
                     Self::_pw_event_handler(
                         global,
                         &nodes_clone.clone(),
+                        &_sender,
                     )
                 })
                 .global_remove(move |object_id| {
@@ -98,20 +106,11 @@ impl PipeWireManager {
 
             let _receiver =
                 _receiver.attach(mainloop.loop_(), move |event| {
-                    log::debug!("Handling PipeWireEvent");
-
                     let objects = nodes_clone_event.clone();
                     let core = core_mutex.clone();
-                    event.handle(objects, core, registry_mutex.clone())
+                    event.handle(
+                        _event_locker.clone(),objects, core, registry_mutex.clone())
                 });
-
-            // let timer = mainloop.loop_().add_timer(move |_| {
-            //     let _ = _sender.send(event::ConnectorEvent::None);
-            // });
-            // timer.update_timer(
-            //     Some(Duration::from_millis(1)), // Send the first message immediately
-            //     Some(Duration::from_millis(100)),
-            // );
 
             // Process events to populate nodes
             mainloop.run();
@@ -120,6 +119,7 @@ impl PipeWireManager {
     fn _pw_event_handler(
         global: &GlobalObject<&DictRef>,
         objects: &Arc<Mutex<PipeWireObjects>>,
+        _sender: &mpsc::Sender<ConnectorEvent>,
     ) {
         // Filter by only node ones
         let mut objects_guard = objects.lock().unwrap();
@@ -131,15 +131,20 @@ impl PipeWireManager {
             pw::types::ObjectType::Port => {
                 let port = Port::new(global);
                 objects_guard._ports_to_be_added.push(port);
-                log::info!("Received PORT event: {:?} \n{:#?}", global, global.props)
+                log::debug!("(Pipewire)Received PORT event: {:?} \n{:#?}", global, global.props);
             }
             pw::types::ObjectType::Link => {
                 let link = Link::new(global);
+                log::debug!("(Pipewire) Received LINK event: {:?} \n{:#?}", global, global.props);
+                let first_id = link.output_node;
+                let second_id = link.input_node;
                 objects_guard.links.push(link);
-                log::info!("Received LINK event: {:?} \n{:#?}", global, global.props)
+                let _result = 
+                    _sender.send(ConnectorEvent::LinkUpdate(first_id, second_id));
             }
             _ => {
-                log::info!("Received non-handled event: {:?} \n{:#?}", global.type_, global.props)
+                log::debug!("(Pipewire)Received non-handled event: {:?} \n{:#?}", global.type_, global.props);
+                let _result = _sender.send(ConnectorEvent::None);
             }
         }
         objects_guard.update_nodes();
@@ -154,9 +159,12 @@ impl PipeWireManager {
     }
 
     fn _raise_event(&self, event: PipeWireEvent) {
+        let event_info = event.to_string();
         if let Err(e) =  self._sender.send(event){
             log::error!("Failed to send event: {:?}", e);
         }
+        log::debug!("Event raised: {:?}", event_info);
+        let _thread_locker = self._event_locker.lock().unwrap();
     }
 
     fn remove_object(objects: &mut PipeWireObjects, obj_id: u32) {
@@ -189,7 +197,10 @@ impl PipeWireManager {
         self._raise_event(PipeWireEvent::LinkCommand(
             first_node_id,
             second_node_id,
-        ))
+        ));
+        self.wait_for_event(|event: &ConnectorEvent|{
+            *event == ConnectorEvent::LinkUpdate(first_node_id, second_node_id)
+        });
     }
 
 
@@ -203,6 +214,26 @@ impl PipeWireManager {
         self._raise_event(PipeWireEvent::UnlinkCommand(
             first_node_id,
             second_node_id,
-        ))
+        ));
+        self.wait_for_event(|event: &ConnectorEvent|{
+            *event == ConnectorEvent::LinkUpdate(first_node_id, second_node_id)
+        });
+    }
+
+    fn wait_for_event<F: Fn(&ConnectorEvent) -> bool>(&self, checker: F) {
+        let mut event_result: ConnectorEvent = ConnectorEvent::None;
+        // Lock the thread and wait for the event to be processed
+        while checker(&event_result) == false {
+            let result = self._receiver.try_recv();
+            
+            if let Err(e) = result{
+                if e == TryRecvError::Disconnected {
+                    log::error!("Failed to receive event: {}", e);
+                }
+                continue;
+            }
+            event_result = result.unwrap();
+        };
+        log::debug!("(Connector) Received event: {:?}", event_result)
     }
 }

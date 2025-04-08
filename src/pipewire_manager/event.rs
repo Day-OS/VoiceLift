@@ -5,35 +5,53 @@ use pipewire::{core::Core, registry::Registry};
 use super::{link::Link, objects::PipeWireObjects};
 
 /// Events that is received by the main thread.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ConnectorEvent {
+    None,
+    LinkUpdate(u32, u32),
 }
 
 /// Events that is received by the PipeWire Backend thread.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PipeWireEvent {
     LinkCommand(u32, u32),
     UnlinkCommand(u32, u32),
 }
 
+impl ToString for PipeWireEvent {
+    fn to_string(&self) -> String {
+        match self {
+            PipeWireEvent::LinkCommand(source_id, target_id) => format!("LinkCommand({}, {})", source_id, target_id),
+            PipeWireEvent::UnlinkCommand(source_id, target_id) => format!("UnlinkCommand({}, {})", source_id, target_id),
+        }
+    }
+}
+
 impl PipeWireEvent {
+    #[allow(unreachable_patterns)]
     pub fn handle(
         &self,
+        _event_locker: Arc<Mutex<()>>,
         objects: Arc<Mutex<PipeWireObjects>>,
         core: Rc<Mutex<Core>>,
         registry: Rc<Mutex<Registry>>
     ) {
-        log::debug!("Handling PipeWireEvent: {:#?}", self);
+        let event_locker = _event_locker.lock().unwrap();
+        log::debug!("(Pipewire) Handling Event: {:#?}", self);
         match self {
             PipeWireEvent::LinkCommand(source_id, target_id) => {
                 let _ = &PipeWireEvent::_link_command(objects, core, *source_id, *target_id);
             }
             PipeWireEvent::UnlinkCommand(source_id, target_id) => {
                 
-                log::info!("Unlinking nodes (WIP)");
+                log::info!("Unlinking nodes {} and {}", source_id, target_id);
                 let _ = &PipeWireEvent::_unlink_command(objects, registry, *source_id, *target_id);
             }
+            _ => {
+                log::warn!("Unhandled event: {:?}", self);
+            }
         }
+        drop(event_locker);
     }
 
     fn _link_command(
@@ -87,6 +105,7 @@ impl PipeWireEvent {
         }
 
         let link_id = link.unwrap().id;
+        log::info!("Found link with ID: {} while searching for source ID: {} and target ID: {}", link_id, source_id, target_id);
 
         objects.remove_link(link_id, Some(registry));
     }

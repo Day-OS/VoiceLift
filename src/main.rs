@@ -7,7 +7,6 @@ use std::thread;
 use std::time::Duration;
 
 mod pipewire_manager;
-
 fn main() {
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Debug,
@@ -25,10 +24,10 @@ fn main() {
     log::info!("Finished Loading!");
     let mut objects = manager.objects.lock().unwrap();
 
-    objects.print_nodes();
+    // objects.print_nodes();
 
     let microphone = objects
-        .find_node_by_name("input.filter-chain-924-13")
+        .find_node_by_name("input.filter-chain-933-13")
         .unwrap()
         .id;
     let source = objects.find_node_by_name("spotify").unwrap().id;
