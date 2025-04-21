@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "editor.formatOnSave": true,
+    "rust-analyzer.cargo.allFeatures": true,
+}

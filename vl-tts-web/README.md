@@ -1,0 +1,1 @@
+This SubCrate is responsible for gathering TTS audio from web services and serving it to the main application. It includes functionalities for handling different TTS providers, managing audio streams, and ensuring smooth integration with the rest of the VoiceLift system.
