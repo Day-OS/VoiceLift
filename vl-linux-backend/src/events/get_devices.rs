@@ -55,6 +55,9 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
 
 pub fn evt_get_devices(event: RpcEvent) -> RpcResult {
     let result = _evt_get_devices(event);
+    if let Err(e) = result.clone() {
+        log::error!("Failed to get devices: {}", e);
+    }
     let response = rmp_serde::to_vec(&ResponseDevices { result })?;
 
     Ok(Some(response))

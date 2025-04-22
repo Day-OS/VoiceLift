@@ -1,19 +1,14 @@
 // Demo of client RPC with no handler which just calls methods
 //
 // use client_rpc_handler example to test client/server
-use busrt::ipc::{Client, Config};
-use busrt::rpc::{Rpc, RpcClient};
-use busrt::{empty_payload, QoS};
+use async_lock::Mutex;
 use device_linker::DeviceLinker;
 use log::LevelFilter;
-use serde::Deserialize;
 use simplelog::{
     ColorChoice, CombinedLogger, ConfigBuilder, TermLogger,
     TerminalMode,
 };
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
-use vl_linux_backend::event_parameters;
+use std::sync::Arc;
 mod device_linker;
 mod device_manager;
 mod linux_device_manager;
@@ -24,13 +19,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Debug,
         ConfigBuilder::new()
-            .set_max_level(LevelFilter::Debug)
             //.add_filter_ignore("easy_pw".to_owned())
             .build(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
     )])
     .unwrap();
+
+    log::info!("Starting device manager...");
 
     let mut device_linkers: Vec<Arc<Mutex<dyn DeviceLinker>>> =
         vec![];
@@ -46,14 +42,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         device_managers.push(linux_linker);
     }
 
+    log::info!("Device managers: {:?}", device_managers);
+    log::info!("Device linkers: {:?}", device_linkers);
+
     if device_linkers.is_empty() {
         log::error!("No device linkers found.");
         return Ok(());
     }
     let linker = device_linkers[0].clone();
-    let mtx_linker = linker.lock().unwrap();
+
+    let mtx_linker = linker.lock().await;
+
     let devices: vl_global::AudioDevices =
-        mtx_linker.get_devices().await?; // Assuming get_audio_devices is implemented in LinuxDeviceManager; adjust as necessary.
-    println!("{:?}", devices);
+        mtx_linker.get_devices().await?;
+
+    if devices.input_devices.is_empty()
+        || devices.output_devices.is_empty()
+    {
+        log::error!("No devices found.");
+        log::debug!("Devices: {:?}", devices);
+        return Ok(());
+    }
+    let input = devices.input_devices.first().unwrap();
+    let output = devices.output_devices.get(1).unwrap();
+
+    log::info!("Linking {} to {}", output, input);
+
+    mtx_linker
+        .link_device(output.clone(), input.clone())
+        .await?;
     Ok(())
 }

@@ -1,4 +1,3 @@
-use crate::event_parameters::ResponseDevices;
 use crate::event_parameters::{self, ResponseDeviceLinkage};
 use crate::{events, PIPEWIRE_MANAGER};
 use busrt::rpc::RpcError;
@@ -17,12 +16,15 @@ impl RpcHandlers for EventHandler {
     // RPC call handler. Will react to the "test" (any params) and "ping" (will parse params as
     // msgpack and return the "message" field back) methods
     async fn handle_call(&self, event: RpcEvent) -> RpcResult {
-        match event.parse_method()? {
+        let parse_method = event.parse_method()?;
+        log::info!("Handling Event: {}", parse_method);
+
+        match parse_method {
             "get_devices" => {
                 events::get_devices::evt_get_devices(event)
             }
             "link_devices" => {
-                events::get_devices::evt_get_devices(event)
+                events::link_devices::evt_link_devices(event)
             }
             _ => Err(RpcError::method(Some(
                 "Event not implemented".as_bytes().to_vec(),

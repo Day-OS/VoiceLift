@@ -27,8 +27,7 @@ async fn main() {
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Debug,
         ConfigBuilder::new()
-            .set_max_level(LevelFilter::Debug)
-            .add_filter_ignore("easy_pw".to_owned())
+            //.add_filter_ignore("easy_pw".to_owned())
             .build(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
