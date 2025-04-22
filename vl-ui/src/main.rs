@@ -71,5 +71,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     mtx_linker
         .link_device(output.clone(), input.clone())
         .await?;
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    // Unlink devices
+    log::info!("Unlinking {} from {}", output, input);
+    mtx_linker
+        .unlink_device(output.clone(), input.clone())
+        .await?;
+
     Ok(())
 }

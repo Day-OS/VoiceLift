@@ -1,13 +1,10 @@
-use crate::event_parameters::{self, ResponseDeviceLinkage};
-use crate::{events, PIPEWIRE_MANAGER};
+use crate::events;
 use busrt::rpc::RpcError;
 use busrt::Frame;
 use busrt::{
     async_trait,
     rpc::{RpcEvent, RpcHandlers, RpcResult},
 };
-use easy_pw::port::PortDirection;
-use vl_global::AudioDevices;
 
 pub(crate) struct EventHandler {}
 
@@ -25,6 +22,9 @@ impl RpcHandlers for EventHandler {
             }
             "link_devices" => {
                 events::link_devices::evt_link_devices(event)
+            }
+            "unlink_devices" => {
+                events::unlink_devices::evt_unlink_devices(event)
             }
             _ => Err(RpcError::method(Some(
                 "Event not implemented".as_bytes().to_vec(),

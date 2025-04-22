@@ -7,4 +7,10 @@ pub trait DeviceLinker: DeviceManager {
         output_device: String,
         input_device: String,
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
+
+    fn unlink_device(
+        &self,
+        output_device: String,
+        input_device: String,
+    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
 }

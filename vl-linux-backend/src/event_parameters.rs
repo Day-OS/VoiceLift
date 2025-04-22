@@ -21,3 +21,15 @@ pub struct RequestDeviceLinkage {
 pub struct ResponseDeviceLinkage {
     pub result: Result<(), String>,
 }
+
+// Unlink Devices
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RequestDeviceUnLinkage {
+    pub first_device: String,
+    pub second_device: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ResponseDeviceUnLinkage {
+    pub result: Result<(), String>,
+}

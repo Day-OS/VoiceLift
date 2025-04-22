@@ -1,5 +1,5 @@
 use crate::{
-    event_parameters::{self, ResponseDevices},
+    event_parameters::{self},
     PIPEWIRE_MANAGER,
 };
 use busrt::rpc::{RpcEvent, RpcResult};
@@ -58,7 +58,10 @@ pub fn evt_get_devices(event: RpcEvent) -> RpcResult {
     if let Err(e) = result.clone() {
         log::error!("Failed to get devices: {}", e);
     }
-    let response = rmp_serde::to_vec(&ResponseDevices { result })?;
+    let response =
+        rmp_serde::to_vec(&event_parameters::ResponseDevices {
+            result,
+        })?;
 
     Ok(Some(response))
 }
