@@ -11,4 +11,5 @@ rmp-serde = "1.3.0"
 serde = "1.0.219"
 simplelog = "0.12.2"
 tokio = "1.44.2"
+vl-global = { path = "../vl-global" }
 vl-linux-backend = { path = "../vl-linux-backend" }

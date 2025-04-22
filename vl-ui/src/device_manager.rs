@@ -1,10 +1,5 @@
 use futures::future::BoxFuture;
-
-#[derive(Debug)]
-pub struct AudioDevices {
-    pub input_devices: Vec<String>,
-    pub output_devices: Vec<String>,
-}
+use vl_global::AudioDevices;
 
 pub trait DeviceManager {
     fn get_devices(

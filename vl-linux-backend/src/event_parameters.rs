@@ -1,14 +1,13 @@
 use serde::Deserialize;
 use serde::Serialize;
-
+use vl_global::AudioDevices;
 // Get Devices
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestDevices {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ResponseDevices {
-    pub input_devices: Vec<String>,
-    pub output_devices: Vec<String>,
+    pub result: Result<AudioDevices, String>,
 }
 
 // Link Devices

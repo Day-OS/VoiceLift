@@ -11,6 +11,7 @@ rodio = "0.20.1"
 simplelog = { version = "0.12.2", features = ["paris"] }
 thiserror = "2.0.12"
 easy-pw = { path = "../easy-pw" }
+vl-global = { path = "../vl-global" }
 busrt = { version = "0.4.19", features = ["broker", "rpc"] }
 tokio = "1.44.2"
 ipnetwork = { version = "0.20.0" }

@@ -16,6 +16,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 mod event_handler;
 mod event_parameters;
+mod events;
 use easy_pw::manager::{self, PipeWireManager};
 
 static PIPEWIRE_MANAGER: OnceLock<Mutex<PipeWireManager>> =

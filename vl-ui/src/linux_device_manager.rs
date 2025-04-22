@@ -1,6 +1,5 @@
 use crate::{
-    device_linker::DeviceLinker,
-    device_manager::{AudioDevices, DeviceManager},
+    device_linker::DeviceLinker, device_manager::DeviceManager,
 };
 use busrt::ipc::{Client, Config};
 use busrt::rpc::{Rpc, RpcClient};
@@ -8,6 +7,7 @@ use busrt::{empty_payload, QoS};
 use futures::future::BoxFuture;
 use serde::Deserialize;
 use std::collections::BTreeMap;
+use vl_global::AudioDevices;
 use vl_linux_backend::event_parameters;
 
 const BROKER_NAME: &str = ".broker";
@@ -63,11 +63,7 @@ impl DeviceManager for LinuxDeviceManager {
             let devices: event_parameters::ResponseDevices =
                 rmp_serde::from_slice(result.payload())?;
 
-            let audio_devices = AudioDevices {
-                input_devices: devices.input_devices,
-                output_devices: devices.output_devices,
-            };
-            Ok(audio_devices)
+            Ok(devices.result?)
         })
     }
 }

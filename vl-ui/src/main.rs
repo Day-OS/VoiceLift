@@ -52,7 +52,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let linker = device_linkers[0].clone();
     let mtx_linker = linker.lock().unwrap();
-    let devices = mtx_linker.get_devices().await?; // Assuming get_audio_devices is implemented in LinuxDeviceManager; adjust as necessary.
+    let devices: vl_global::AudioDevices =
+        mtx_linker.get_devices().await?; // Assuming get_audio_devices is implemented in LinuxDeviceManager; adjust as necessary.
     println!("{:?}", devices);
     Ok(())
 }
