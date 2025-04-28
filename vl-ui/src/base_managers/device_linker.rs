@@ -1,6 +1,6 @@
 use futures::future::BoxFuture;
 
-use crate::device_manager::DeviceManager;
+use super::device_manager::DeviceManager;
 pub trait DeviceLinker: DeviceManager {
     fn link_device(
         &self,

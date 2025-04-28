@@ -4,8 +4,6 @@ use busrt::rpc::Rpc;
 use busrt::rpc::RpcClient;
 use busrt::QoS;
 use log::LevelFilter;
-use piper_rs::synth::PiperSpeechSynthesizer;
-use rodio::buffer::SamplesBuffer;
 use simplelog::{
     ColorChoice, CombinedLogger, ConfigBuilder, TermLogger,
     TerminalMode,
@@ -17,6 +15,7 @@ use tokio::time::sleep;
 mod event_handler;
 mod event_parameters;
 mod events;
+mod piper;
 use easy_pw::manager::{self, PipeWireManager};
 
 static PIPEWIRE_MANAGER: OnceLock<Mutex<PipeWireManager>> =
@@ -36,6 +35,18 @@ async fn main() {
 
     let _ = PIPEWIRE_MANAGER
         .set(Mutex::new(manager::PipeWireManager::default()));
+
+    let piper_tts_manager = piper::PiperTTSManager::new(
+        Path::new(
+            //"/usr/share/piper-voices/en/en_US/glados/high/en_us-glados-high.onnx.json",
+            "/usr/share/piper-voices/pt/pt_BR/droidela-v2/medium/droidela-v2.onnx.json",
+        ),
+        1,
+    ).unwrap();
+
+    piper_tts_manager
+        .speak("Olá mundo".to_string(), 48, 128)
+        .unwrap();
 
     // create a new broker instance
     let mut broker = Broker::new();
@@ -59,7 +70,7 @@ async fn main() {
     // create RPC
     let crpc = RpcClient::new(core_client, handlers);
 
-    println!("Waiting for frames to {}", BROKER_NAME);
+    log::info!("Waiting for frames to {}", BROKER_NAME);
     // set broker client, optional, allows to spawn fifo servers, the client is wrapped in
     // Arc<Mutex<_>> as it is cloned for each fifo spawned and can be got back with core_rpc_client
     // broker method
@@ -77,60 +88,4 @@ async fn main() {
     {
         sleep(Duration::from_secs(1)).await;
     }
-
-    // Initialize PipeWire
-    // let manager = PipeWireManager::default();
-
-    // // Wait for 2 seconds
-    // thread::sleep(Duration::from_secs(2));
-
-    // log::info!("Finished Loading!");
-    // let mut objects = manager.objects.lock().unwrap();
-
-    // // objects.print_nodes();
-
-    // let microphone = objects
-    //     .find_node_by_name("input.filter-chain-933-13")
-    //     .unwrap()
-    //     .id;
-    // let source = objects.find_node_by_name("spotify").unwrap().id;
-
-    // std::mem::drop(objects);
-    // log::info!("Found nodes: {microphone} and {source}");
-
-    // manager.link_nodes(source, microphone);
-    // manager.unlink_nodes(source, microphone);
-
-    // log::info!("Event Sent");
-
-    // manager._main_thread.join().unwrap();
-
-    let config_path =
-        std::env::args().nth(1).expect("Please specify config path");
-    let text = "TEST".to_string();
-    let sid = std::env::args().nth(2);
-
-    let model =
-        piper_rs::from_config_path(Path::new(&config_path)).unwrap();
-    // Set speaker ID
-    if let Some(sid) = sid {
-        let sid =
-            sid.parse::<i64>().expect("Speaker ID should be number!");
-        model.set_speaker(sid);
-    }
-    let synth = PiperSpeechSynthesizer::new(model).unwrap();
-    let mut samples: Vec<f32> = Vec::new();
-    let audio = synth.synthesize_parallel(text, None).unwrap();
-    for result in audio {
-        samples.append(&mut result.unwrap().into_vec());
-    }
-
-    let (_stream, handle) =
-        rodio::OutputStream::try_default().unwrap();
-    let sink = rodio::Sink::try_new(&handle).unwrap();
-
-    let buf = SamplesBuffer::new(1, 22050, samples);
-    sink.append(buf);
-
-    sink.sleep_until_end();
 }

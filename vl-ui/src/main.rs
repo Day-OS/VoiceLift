@@ -2,17 +2,19 @@
 //
 // use client_rpc_handler example to test client/server
 use async_lock::Mutex;
-use device_linker::DeviceLinker;
+use base_managers::{
+    device_linker::DeviceLinker, device_manager::DeviceManager,
+};
 use log::LevelFilter;
 use simplelog::{
     ColorChoice, CombinedLogger, ConfigBuilder, TermLogger,
     TerminalMode,
 };
 use std::sync::Arc;
-mod device_linker;
-mod device_manager;
-mod linux_device_manager;
-use crate::device_manager::DeviceManager;
+mod base_managers;
+mod linux;
+use linux::linux_device_manager;
+use linux::linux_tts_manager;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

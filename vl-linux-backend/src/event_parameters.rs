@@ -33,3 +33,14 @@ pub struct RequestDeviceUnLinkage {
 pub struct ResponseDeviceUnLinkage {
     pub result: Result<(), String>,
 }
+
+// Talk
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RequestTTS {
+    pub phrase: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ResponseTTS {
+    pub result: Result<(), String>,
+}

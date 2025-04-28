@@ -1,4 +1,4 @@
-use crate::{
+use crate::base_managers::{
     device_linker::DeviceLinker, device_manager::DeviceManager,
 };
 use busrt::ipc::{Client, Config};
