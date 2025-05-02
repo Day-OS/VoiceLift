@@ -17,7 +17,7 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
     let manager = PIPEWIRE_MANAGER
         .get()
         .ok_or("PipeWireManager not initialized")?
-        .lock()
+        .read()
         .map_err(|e| {
             format!("Failed to lock PipeWireManager: {}", e)
         })?;
@@ -30,7 +30,7 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
         output_devices: vec![],
     };
 
-    let objects = objects.lock().map_err(|e| {
+    let objects = objects.read().map_err(|e| {
         format!("Failed to lock PipeWireObjects: {}", e)
     })?;
 
@@ -50,6 +50,8 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
             }
         }
     }
+    drop(objects);
+    drop(manager);
     Ok(audio_device)
 }
 

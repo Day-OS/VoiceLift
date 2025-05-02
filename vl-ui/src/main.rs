@@ -2,6 +2,7 @@
 //
 // use client_rpc_handler example to test client/server
 use async_lock::Mutex;
+use base_managers::tts_manager::TtsManager;
 use base_managers::{
     device_linker::DeviceLinker, device_manager::DeviceManager,
 };
@@ -34,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![];
     let mut device_managers: Vec<Arc<Mutex<dyn DeviceManager>>> =
         vec![];
+    let mut tts_managers: Vec<Arc<Mutex<dyn TtsManager>>> = vec![];
 
     #[cfg(target_os = "linux")]
     {
@@ -42,6 +44,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ));
         device_linkers.push(linux_linker.clone());
         device_managers.push(linux_linker);
+        let linux_tts = Arc::new(Mutex::new(
+            linux_tts_manager::LinuxTtsManager::new().await,
+        ));
+        tts_managers.push(linux_tts);
     }
 
     log::info!("Device managers: {:?}", device_managers);
@@ -52,11 +58,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     let linker = device_linkers[0].clone();
+    let tts = tts_managers[0].clone();
 
     let mtx_linker = linker.lock().await;
-
+    let mtx_tts = tts.lock().await;
     let devices: vl_global::AudioDevices =
         mtx_linker.get_devices().await?;
+
+    for device in devices.output_devices.iter() {
+        log::info!("Found output device: {}", device);
+    }
 
     if devices.input_devices.is_empty()
         || devices.output_devices.is_empty()
@@ -65,21 +76,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         log::debug!("Devices: {:?}", devices);
         return Ok(());
     }
-    let input = devices.input_devices.first().unwrap();
-    let output = devices.output_devices.get(1).unwrap();
+    let input = "Chromium input".to_owned();
+    //    let input = devices.input_devices.first().unwrap();
 
-    log::info!("Linking {} to {}", output, input);
+    log::info!("Linking TTS OUTPUT to {}", input);
 
-    mtx_linker
-        .link_device(output.clone(), input.clone())
-        .await?;
+    mtx_linker.link_device(input.clone()).await?;
+
+    mtx_tts.speak("Olá Mundo! :)".to_string()).await?;
 
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     // Unlink devices
-    log::info!("Unlinking {} from {}", output, input);
-    mtx_linker
-        .unlink_device(output.clone(), input.clone())
-        .await?;
+    log::info!("Unlinking TTS OUTPUT to {}", input);
+    mtx_linker.unlink_device(input.clone()).await?;
+    log::info!("Finished!");
 
     Ok(())
 }

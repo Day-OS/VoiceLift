@@ -24,6 +24,8 @@ pub struct PiperTTSManager {
     _rodio_stream: rodio::OutputStream,
     _rodio_handle: rodio::OutputStreamHandle,
 }
+unsafe impl Sync for PiperTTSManager {}
+unsafe impl Send for PiperTTSManager {}
 
 impl PiperTTSManager {
     pub fn new(
@@ -71,7 +73,7 @@ impl PiperTTSManager {
         Ok(())
     }
 
-    pub fn get_handle_name(&self) -> String {
+    pub fn get_handle_name() -> String {
         format!("alsa_playback.{}", CARGO_PKG_NAME)
     }
 }

@@ -13,8 +13,7 @@ pub struct ResponseDevices {
 // Link Devices
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestDeviceLinkage {
-    pub first_device: String,
-    pub second_device: String,
+    pub target_device: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,8 +24,7 @@ pub struct ResponseDeviceLinkage {
 // Unlink Devices
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestDeviceUnLinkage {
-    pub first_device: String,
-    pub second_device: String,
+    pub target_device: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,6 +36,8 @@ pub struct ResponseDeviceUnLinkage {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestTTS {
     pub phrase: String,
+    pub pitch: u8,
+    pub volume: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

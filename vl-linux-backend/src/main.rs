@@ -4,12 +4,13 @@ use busrt::rpc::Rpc;
 use busrt::rpc::RpcClient;
 use busrt::QoS;
 use log::LevelFilter;
+use piper::PiperTTSManager;
 use simplelog::{
     ColorChoice, CombinedLogger, ConfigBuilder, TermLogger,
     TerminalMode,
 };
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::Duration;
 use tokio::time::sleep;
 mod event_handler;
@@ -18,7 +19,10 @@ mod events;
 mod piper;
 use easy_pw::manager::{self, PipeWireManager};
 
-static PIPEWIRE_MANAGER: OnceLock<Mutex<PipeWireManager>> =
+static PIPEWIRE_MANAGER: OnceLock<RwLock<PipeWireManager>> =
+    OnceLock::new();
+
+static PIPERTTS_MANAGER: OnceLock<Arc<RwLock<PiperTTSManager>>> =
     OnceLock::new();
 
 #[tokio::main]
@@ -34,19 +38,18 @@ async fn main() {
     .unwrap();
 
     let _ = PIPEWIRE_MANAGER
-        .set(Mutex::new(manager::PipeWireManager::default()));
+        .set(RwLock::new(manager::PipeWireManager::default()));
 
     let piper_tts_manager = piper::PiperTTSManager::new(
         Path::new(
-            //"/usr/share/piper-voices/en/en_US/glados/high/en_us-glados-high.onnx.json",
+            // "/usr/share/piper-voices/en/en_US/glados/high/en_us-glados-high.onnx.json",
             "/usr/share/piper-voices/pt/pt_BR/droidela-v2/medium/droidela-v2.onnx.json",
         ),
         1,
     ).unwrap();
 
-    piper_tts_manager
-        .speak("Olá mundo".to_string(), 48, 128)
-        .unwrap();
+    let lock_pipertts = Arc::new(RwLock::new(piper_tts_manager));
+    _ = PIPERTTS_MANAGER.set(lock_pipertts.clone());
 
     // create a new broker instance
     let mut broker = Broker::new();

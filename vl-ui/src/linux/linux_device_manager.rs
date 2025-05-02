@@ -18,7 +18,7 @@ pub struct LinuxDeviceManager {
 impl LinuxDeviceManager {
     async fn new_client(
     ) -> Result<RpcClient, Box<dyn std::error::Error>> {
-        let name = "voice-lift.client";
+        let name = "voice-lift-device.client";
         // create a new client instance
         let config = Config::new("/tmp/voicelift.sock", name);
         let client = Client::connect(&config).await?;
@@ -69,7 +69,6 @@ impl DeviceManager for LinuxDeviceManager {
 impl DeviceLinker for LinuxDeviceManager {
     fn link_device(
         &self,
-        output_device: String,
         input_device: String,
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>> {
         Box::pin(async move {
@@ -81,8 +80,7 @@ impl DeviceLinker for LinuxDeviceManager {
                     "link_devices",
                     rmp_serde::to_vec_named(
                         &event_parameters::RequestDeviceLinkage {
-                            first_device: output_device,
-                            second_device: input_device,
+                            target_device: input_device,
                         },
                     )?
                     .into(),
@@ -106,7 +104,6 @@ impl DeviceLinker for LinuxDeviceManager {
     }
     fn unlink_device(
         &self,
-        output_device: String,
         input_device: String,
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>> {
         Box::pin(async move {
@@ -118,8 +115,7 @@ impl DeviceLinker for LinuxDeviceManager {
                     "unlink_devices",
                     rmp_serde::to_vec_named(
                         &event_parameters::RequestDeviceUnLinkage {
-                            first_device: output_device,
-                            second_device: input_device,
+                            target_device: input_device,
                         },
                     )?
                     .into(),

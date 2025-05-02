@@ -14,9 +14,10 @@ impl RpcHandlers for EventHandler {
     // msgpack and return the "message" field back) methods
     async fn handle_call(&self, event: RpcEvent) -> RpcResult {
         let parse_method = event.parse_method()?;
-        log::info!("Handling Event: {}", parse_method);
+        let event_name = parse_method.to_owned();
+        log::info!("Handling Event: {}", event_name);
 
-        match parse_method {
+        let result = match parse_method {
             "get_devices" => {
                 events::get_devices::evt_get_devices(event)
             }
@@ -26,10 +27,13 @@ impl RpcHandlers for EventHandler {
             "unlink_devices" => {
                 events::unlink_devices::evt_unlink_devices(event)
             }
+            "speak" => events::tts::evt_tts(event),
             _ => Err(RpcError::method(Some(
                 "Event not implemented".as_bytes().to_vec(),
             ))),
-        }
+        };
+        log::info!("Event {} handled successfully.", event_name);
+        result
     }
     // Handle RPC notifications
     async fn handle_notification(&self, event: RpcEvent) {

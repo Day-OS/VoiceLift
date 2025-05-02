@@ -4,7 +4,8 @@ use vl_global::AudioDevices;
 
 /// Responsible for managing TTS
 pub trait TtsManager: Debug {
-    fn get_devices(
+    fn speak(
         &self,
-    ) -> BoxFuture<Result<AudioDevices, Box<dyn std::error::Error>>>;
+        text: String,
+    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
 }
