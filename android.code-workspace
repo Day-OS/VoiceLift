@@ -1,0 +1,53 @@
+{
+    "folders": [
+        {
+            "path": "vl-main",
+            "name": "vl-main"
+        },
+        {
+            "path": "vl-global",
+            "name": "vl-global"
+        },
+        ,
+        {
+            "path": "android",
+            "name": "android"
+        }
+    ],
+    "settings": {
+        "files.exclude": {
+            "vl-linux-backend": true,
+            "easy-pw": true,
+        },
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "editor.formatOnSave": true,
+        "rust-analyzer.cargo.allFeatures": true,
+        "rust-analyzer.cargo.target": "aarch64-linux-android",
+        "rust-analyzer.cargo.extraEnv": {
+            "CXX": "/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++",
+            "CC": "/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang"
+        }
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "Build",
+                "command": "make",
+                "type": "shell",
+                "args": [
+                    "build-android"
+                ],
+                "group": {
+                    "kind": "build",
+                    "isDefault": true
+                }
+            }
+        ]
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [],
+        "compounds": []
+    }
+}

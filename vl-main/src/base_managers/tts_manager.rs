@@ -8,4 +8,8 @@ pub trait TtsManager: Debug {
         &self,
         text: String,
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
+
+    fn stop(
+        &self,
+    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
 }

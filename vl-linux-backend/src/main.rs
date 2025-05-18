@@ -25,6 +25,7 @@ static PIPEWIRE_MANAGER: OnceLock<RwLock<PipeWireManager>> =
 static PIPERTTS_MANAGER: OnceLock<Arc<RwLock<PiperTTSManager>>> =
     OnceLock::new();
 
+#[cfg(target_os = "linux")]
 #[tokio::main]
 async fn main() {
     CombinedLogger::init(vec![TermLogger::new(

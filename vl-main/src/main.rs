@@ -13,8 +13,11 @@ use simplelog::{
 };
 use std::sync::Arc;
 mod base_managers;
+#[cfg(target_os = "linux")]
 mod linux;
+#[cfg(target_os = "linux")]
 use linux::linux_device_manager;
+#[cfg(target_os = "linux")]
 use linux::linux_tts_manager;
 
 #[tokio::main]
