@@ -10,28 +10,12 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 async-lock = "3.4.0"
 bevy = { version = "0.16.0", default-features = false, features = [
-    "android-native-activity",
-    "android_shared_stdcxx",
-    "animation",
+    # "android-native-activity",
+    # "android_shared_stdcxx",
     "bevy_log",
-    "bevy_animation",
     "bevy_asset",
     "bevy_audio",
-    "bevy_color",
-    "bevy_core_pipeline",
-    "bevy_gilrs",
-    "bevy_gizmos",
-    "bevy_gltf",
-    "bevy_pbr",
-    "bevy_render",
-    "bevy_scene",
-    "bevy_sprite",
-    "bevy_state",
-    "bevy_text",
-    "bevy_ui",
     "bevy_winit",
-    "default_font",
-    "hdr",
     "ktx2",
     "multi_threaded",
     "png",
@@ -39,11 +23,13 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "tonemapping_luts",
     "vorbis",
     "webgl2",
-    "x11",
+    # "x11",
+    "wayland",
     "zstd",
 ] }
 bevy_egui = "0.34.1"
 busrt = { version = "0.4.19", features = ["ipc", "rpc"] }
+egui_virtual_keyboard = { path = "../egui_virtual_keyboard" }
 futures = "0.3.31"
 jni = "0.21.1"
 log = "0.4.27"

@@ -1,6 +1,6 @@
+use busrt::QoS;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::{Rpc, RpcClient};
-use busrt::QoS;
 use std::fmt::Debug;
 use vl_linux_backend::event_parameters;
 const BROKER_NAME: &str = ".broker";
@@ -23,8 +23,8 @@ impl Debug for LinuxTtsManager {
 }
 
 impl LinuxTtsManager {
-    async fn new_client(
-    ) -> Result<RpcClient, Box<dyn std::error::Error>> {
+    async fn new_client()
+    -> Result<RpcClient, Box<dyn std::error::Error>> {
         let name = "voice-lift-tts.client";
         // create a new client instance
         let config = Config::new("/tmp/voicelift.sock", name);
@@ -77,5 +77,13 @@ impl TtsManager for LinuxTtsManager {
             response.result?;
             Ok(())
         })
+    }
+
+    fn stop(
+        &self,
+    ) -> futures::future::BoxFuture<
+        Result<(), Box<dyn std::error::Error>>,
+    > {
+        panic!("not implemented");
     }
 }

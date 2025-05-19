@@ -1,14 +1,14 @@
+use super::jni::JNIManager;
 use jni::objects::JValue;
-use super::jni::JNIManager
 
 fn get_() {}
+
 /// Open Android IMS keyboard. This doesn't work for accentuated characters.
 /// Taken from https://github.com/mvvvv/StereoKit-rust/
 /// Under MIT License
 #[cfg(target_os = "android")]
 pub fn show_soft_input(jni_m: JNIManager, show: bool) -> bool {
-    jni_m.kk()
-
+    jni_m.kk();
 
     if show {
         let result = android_env

@@ -10,6 +10,7 @@ use bevy::{
     window::{AppLifecycle, WindowMode},
     winit::WinitSettings,
 };
+#[cfg(target_os = "android")]
 mod android;
 mod base_managers;
 mod ui;

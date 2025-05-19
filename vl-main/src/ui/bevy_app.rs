@@ -1,16 +1,43 @@
+#[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
+use egui_virtual_keyboard::VirtualKeyboard;
+
 use bevy::{
     color::palettes::basic::*,
-    input::{gestures::RotationGesture, touch::TouchPhase},
+    input::{
+        gestures::RotationGesture,
+        keyboard::{Key, KeyboardInput},
+        mouse::MouseButtonInput,
+        touch::TouchPhase,
+    },
     log::{Level, LogPlugin},
+    math::VectorSpace,
     prelude::*,
-    window::{AppLifecycle, WindowMode},
+    window::{
+        AppLifecycle, CursorOptions, WindowMode, WindowResolution,
+    },
     winit::WinitSettings,
 };
-use bevy_egui::{EguiContextPass, EguiContexts, EguiPlugin, egui};
+use bevy_egui::{
+    EguiContextPass, EguiContexts, EguiInput, EguiPlugin,
+    egui::{self, Frame, RawInput},
+    input::EguiInputEvent,
+};
+
+#[derive(bevy::prelude::Resource)]
+pub struct Keyboard(VirtualKeyboard);
+
+impl Default for Keyboard {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
 
 pub fn run() {
     let mut app = App::new();
+    app.insert_resource(ClearColor(Color::NONE));
+    app.insert_resource(Keyboard::default());
+    app.insert_resource(LoremIpsum::default());
     app.add_plugins(
         DefaultPlugins
             .set(LogPlugin {
@@ -22,10 +49,22 @@ pub fn run() {
             })
             .set(WindowPlugin {
                 primary_window: Some(Window {
+                    cursor_options: CursorOptions {
+                        // Allow inputs to pass through to apps behind this app.
+                        hit_test: false,
+                        ..default()
+                    },
+                    window_level:
+                        bevy::window::WindowLevel::AlwaysOnTop,
+                    transparent: true,
+                    decorations: false,
                     resizable: false,
-                    mode: WindowMode::BorderlessFullscreen(
-                        MonitorSelection::Primary,
+                    resolution: WindowResolution::new(400., 400.),
+                    fullsize_content_view: false,
+                    position: WindowPosition::Centered(
+                        MonitorSelection::Current,
                     ),
+                    mode: WindowMode::Windowed,
                     // on iOS, gestures must be enabled.
                     // This doesn't work on Android
                     recognize_rotation_gesture: true,
@@ -41,21 +80,14 @@ pub fn run() {
         enable_multipass_for_primary_context: true,
     })
     .add_systems(EguiContextPass, ui_example_system)
+    .add_systems(Update, keyboard)
+    .add_systems(Update, keyboard_test)
     .insert_resource(WinitSettings::mobile())
-    .add_systems(Startup, (setup_scene, setup_music))
-    .add_systems(
-        Update,
-        (
-            touch_camera,
-            button_handler,
-            // Only run the lifetime handler when an [`AudioSink`] component exists in the world.
-            // This ensures we don't try to manage audio that hasn't been initialized yet.
-            handle_lifetime.run_if(any_with_component::<AudioSink>),
-        ),
-    )
+    .add_event::<VirtualKeyboardEvent>()
     .run();
 }
 
+#[derive(Resource)]
 struct LoremIpsum(String);
 impl Default for LoremIpsum {
     fn default() -> Self {
@@ -63,170 +95,62 @@ impl Default for LoremIpsum {
     }
 }
 
+#[derive(Event)]
+/// Wraps Egui events emitted by [`crate::EguiInputSet`] systems.
+pub struct VirtualKeyboardEvent {
+    pub key: egui::Key,
+}
+
+fn keyboard(
+    mut keyboard: ResMut<Keyboard>,
+    mut kbdevent: EventWriter<VirtualKeyboardEvent>,
+) {
+    for event in keyboard.0.events.iter() {
+        if let egui::Event::Key {
+            key,
+            physical_key: _,
+            pressed: _,
+            repeat: _,
+            modifiers: _,
+        } = event
+        {
+            kbdevent.write(VirtualKeyboardEvent { key: *key });
+        };
+    }
+    keyboard.0.events.clear();
+}
+
+fn keyboard_test(
+    mut text: ResMut<LoremIpsum>,
+    mut kbdevent: EventReader<VirtualKeyboardEvent>,
+) {
+    for event in kbdevent.read() {
+        text.0 += event.key.name();
+        println!("{:?}", event.key)
+    }
+}
+
 fn ui_example_system(
-    mut text: Local<LoremIpsum>,
+    mut text: ResMut<LoremIpsum>,
     mut contexts: EguiContexts,
+    mut keyboard: ResMut<Keyboard>,
+    mut cursor_moved_reader: EventReader<MouseButtonInput>,
 ) {
-    egui::Window::new("Hello").show(contexts.ctx_mut(), |ui| {
-        ui.label("world");
-        ui.text_edit_multiline(&mut text.0);
-    });
-}
+    let ctx = contexts.ctx_mut();
+    let ss = ctx.screen_rect().size();
+    let screen_size = bevy_egui::egui::Vec2 { x: ss.x, y: ss.y };
 
-fn touch_camera(
-    window: Query<&Window>,
-    mut touches: EventReader<TouchInput>,
-    mut camera_transform: Single<&mut Transform, With<Camera3d>>,
-    mut last_position: Local<Option<Vec2>>,
-    mut rotations: EventReader<RotationGesture>,
-) {
-    let window = window.single().unwrap();
-
-    for touch in touches.read() {
-        if touch.phase == TouchPhase::Started {
-            *last_position = None;
-        }
-        if let Some(last_position) = *last_position {
-            **camera_transform = Transform::from_xyz(
-                camera_transform.translation.x
-                    + (touch.position.x - last_position.x)
-                        / window.width()
-                        * 5.0,
-                camera_transform.translation.y,
-                camera_transform.translation.z
-                    + (touch.position.y - last_position.y)
-                        / window.height()
-                        * 5.0,
-            )
-            .looking_at(Vec3::ZERO, Vec3::Y);
-        }
-        *last_position = Some(touch.position);
-    }
-    // Rotation gestures only work on iOS
-    for rotation in rotations.read() {
-        let forward = camera_transform.forward();
-        camera_transform.rotate_axis(forward, rotation.0 / 10.0);
-    }
-}
-
-/// set up a simple 3D scene
-fn setup_scene(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    // plane
-    commands.spawn((
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(5.0, 5.0))),
-        MeshMaterial3d(materials.add(Color::srgb(0.1, 0.2, 0.1))),
-    ));
-    // cube
-    commands.spawn((
-        Mesh3d(meshes.add(Cuboid::default())),
-        MeshMaterial3d(materials.add(Color::srgb(0.5, 0.4, 0.3))),
-        Transform::from_xyz(0.0, 0.5, 0.0),
-    ));
-    // sphere
-    commands.spawn((
-        Mesh3d(meshes.add(Sphere::new(0.5).mesh().ico(4).unwrap())),
-        MeshMaterial3d(materials.add(Color::srgb(0.1, 0.4, 0.8))),
-        Transform::from_xyz(1.5, 1.5, 1.5),
-    ));
-    // light
-    commands.spawn((
-        PointLight {
-            intensity: 1_000_000.0,
-            // Shadows makes some Android devices segfault, this is under investigation
-            // https://github.com/bevyengine/bevy/issues/8214
-            #[cfg(not(target_os = "android"))]
-            shadows_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(4.0, 8.0, 4.0),
-    ));
-    // camera
-    commands.spawn((
-        Camera3d::default(),
-        Transform::from_xyz(-2.0, 2.5, 5.0)
-            .looking_at(Vec3::ZERO, Vec3::Y),
-        // MSAA makes some Android devices panic, this is under investigation
-        // https://github.com/bevyengine/bevy/issues/8229
-        #[cfg(target_os = "android")]
-        Msaa::Off,
-    ));
-
-    // Test ui
-    commands
-        .spawn((
-            Button,
-            Node {
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                position_type: PositionType::Absolute,
-                left: Val::Px(50.0),
-                right: Val::Px(50.0),
-                bottom: Val::Px(50.0),
-                ..default()
-            },
-        ))
-        .with_child((
-            Text::new("Test Button"),
-            TextFont {
-                font_size: 30.0,
-                ..default()
-            },
-            TextColor::BLACK,
-            TextLayout::new_with_justify(JustifyText::Center),
-        ));
-}
-
-fn button_handler(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, mut color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = BLUE.into();
-                show_soft_input(true);
-            }
-            Interaction::Hovered => {
-                *color = GRAY.into();
-            }
-            Interaction::None => {
-                *color = WHITE.into();
-            }
-        }
-    }
-}
-
-fn setup_music(
-    asset_server: Res<AssetServer>,
-    mut commands: Commands,
-) {
-    commands.spawn((
-        AudioPlayer::new(
-            asset_server.load("sounds/Windless Slopes.ogg"),
-        ),
-        PlaybackSettings::LOOP,
-    ));
-}
-
-// Pause audio when app goes into background and resume when it returns.
-// This is handled by the OS on iOS, but not on Android.
-fn handle_lifetime(
-    mut lifecycle_events: EventReader<AppLifecycle>,
-    music_controller: Single<&AudioSink>,
-) {
-    for event in lifecycle_events.read() {
-        match event {
-            AppLifecycle::Idle
-            | AppLifecycle::WillSuspend
-            | AppLifecycle::WillResume => {}
-            AppLifecycle::Suspended => music_controller.pause(),
-            AppLifecycle::Running => music_controller.play(),
-        }
-    }
+    egui::Window::new("Hello")
+        .anchor(egui::Align2::LEFT_TOP, bevy_egui::egui::Vec2::ZERO)
+        .frame(Frame::NONE)
+        .default_rect(ctx.screen_rect())
+        .fixed_size(screen_size)
+        .resizable(false)
+        .collapsible(false)
+        .title_bar(false)
+        .show(contexts.ctx_mut(), |ui| {
+            ui.label("world");
+            ui.text_edit_multiline(&mut text.0);
+            keyboard.0.show(ui)
+        });
 }
