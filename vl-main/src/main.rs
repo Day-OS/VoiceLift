@@ -13,14 +13,14 @@ use simplelog::{
     TerminalMode,
 };
 use std::sync::Arc;
-mod base_managers;
-#[cfg(target_os = "linux")]
-mod linux;
-mod ui;
-#[cfg(target_os = "linux")]
-use linux::linux_device_manager;
-#[cfg(target_os = "linux")]
-use linux::linux_tts_manager;
+pub mod base_managers;
+pub mod desktop;
+pub mod ui;
+
+// #[cfg(target_os = "linux")]
+// use desktop::linux::linux_device_manager;
+// #[cfg(target_os = "linux")]
+// use desktop::linux::linux_tts_manager;
 
 // the `bevy_main` proc_macro generates the required boilerplate for Android
 #[bevy_main]

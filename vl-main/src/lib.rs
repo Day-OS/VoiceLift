@@ -12,8 +12,9 @@ use bevy::{
 };
 #[cfg(target_os = "android")]
 mod android;
-mod base_managers;
-mod ui;
+pub mod base_managers;
+pub mod desktop;
+pub mod ui;
 
 // the `bevy_main` proc_macro generates the required boilerplate for Android
 #[bevy_main]

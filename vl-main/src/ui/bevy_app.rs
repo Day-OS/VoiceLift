@@ -1,37 +1,19 @@
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
-use egui_virtual_keyboard::VirtualKeyboard;
 
+use crate::desktop::virtual_keyboard::{
+    Keyboard, keyboard_input_event, keyboard_output_event,
+};
 use bevy::{
-    color::palettes::basic::*,
-    input::{
-        gestures::RotationGesture,
-        keyboard::{Key, KeyboardInput},
-        mouse::MouseButtonInput,
-        touch::TouchPhase,
-    },
     log::{Level, LogPlugin},
-    math::VectorSpace,
     prelude::*,
-    window::{
-        AppLifecycle, CursorOptions, WindowMode, WindowResolution,
-    },
+    window::{CursorOptions, WindowMode, WindowResolution},
     winit::WinitSettings,
 };
 use bevy_egui::{
-    EguiContextPass, EguiContexts, EguiInput, EguiPlugin,
-    egui::{self, Frame, RawInput},
-    input::EguiInputEvent,
+    EguiContextPass, EguiContexts, EguiPlugin,
+    egui::{self, Frame},
 };
-
-#[derive(bevy::prelude::Resource)]
-pub struct Keyboard(VirtualKeyboard);
-
-impl Default for Keyboard {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
 
 pub fn run() {
     let mut app = App::new();
@@ -80,10 +62,13 @@ pub fn run() {
         enable_multipass_for_primary_context: true,
     })
     .add_systems(EguiContextPass, ui_example_system)
-    .add_systems(Update, keyboard)
-    .add_systems(Update, keyboard_test)
+    .add_systems(
+        Update,
+        (keyboard_input_event, keyboard_output_event),
+    )
+    // .add_systems(Update, keyboard_test)
     .insert_resource(WinitSettings::mobile())
-    .add_event::<VirtualKeyboardEvent>()
+    // .add_event::<VirtualKeyboardEvent>()
     .run();
 }
 
@@ -95,46 +80,26 @@ impl Default for LoremIpsum {
     }
 }
 
-#[derive(Event)]
-/// Wraps Egui events emitted by [`crate::EguiInputSet`] systems.
-pub struct VirtualKeyboardEvent {
-    pub key: egui::Key,
-}
+// #[derive(Event)]
+// /// Wraps Egui events emitted by [`crate::EguiInputSet`] systems.
+// pub struct VirtualKeyboardEvent {
+//     pub key: egui::Key,
+// }
 
-fn keyboard(
-    mut keyboard: ResMut<Keyboard>,
-    mut kbdevent: EventWriter<VirtualKeyboardEvent>,
-) {
-    for event in keyboard.0.events.iter() {
-        if let egui::Event::Key {
-            key,
-            physical_key: _,
-            pressed: _,
-            repeat: _,
-            modifiers: _,
-        } = event
-        {
-            kbdevent.write(VirtualKeyboardEvent { key: *key });
-        };
-    }
-    keyboard.0.events.clear();
-}
-
-fn keyboard_test(
-    mut text: ResMut<LoremIpsum>,
-    mut kbdevent: EventReader<VirtualKeyboardEvent>,
-) {
-    for event in kbdevent.read() {
-        text.0 += event.key.name();
-        println!("{:?}", event.key)
-    }
-}
+// fn keyboard_test(
+//     mut text: ResMut<LoremIpsum>,
+//     mut kbdevent: EventReader<VirtualKeyboardEvent>,
+// ) {
+//     for event in kbdevent.read() {
+//         text.0 += event.key.name();
+//         println!("{:?}", event.key)
+//     }
+// }
 
 fn ui_example_system(
     mut text: ResMut<LoremIpsum>,
     mut contexts: EguiContexts,
     mut keyboard: ResMut<Keyboard>,
-    mut cursor_moved_reader: EventReader<MouseButtonInput>,
 ) {
     let ctx = contexts.ctx_mut();
     let ss = ctx.screen_rect().size();
@@ -151,6 +116,6 @@ fn ui_example_system(
         .show(contexts.ctx_mut(), |ui| {
             ui.label("world");
             ui.text_edit_multiline(&mut text.0);
-            keyboard.0.show(ui)
+            keyboard.base.show(ui)
         });
 }
