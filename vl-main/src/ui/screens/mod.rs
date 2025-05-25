@@ -48,7 +48,8 @@ pub trait Screen: Sync + Send {
 
 #[derive(Resource)]
 pub struct ScreenManager {
-    pub screens: HashMap<String, Arc<RwLock<dyn Screen>>>,
+    pub screen_size: Vec2,
+    screens: HashMap<String, Arc<RwLock<dyn Screen>>>,
     pub selected_screen: Arc<RwLock<dyn Screen>>,
     pub keyboard: Keyboard,
 }
@@ -58,6 +59,7 @@ impl ScreenManager {
         Self::_add_screen(&mut hashmap, first_screen.clone());
 
         Self {
+            screen_size: Vec2::default(),
             screens: hashmap,
             selected_screen: first_screen,
             keyboard: Keyboard::default(),
@@ -94,6 +96,7 @@ impl ScreenManager {
         app.add_systems(Update, keyboard_output_event);
     }
 
+    /// Draw the current selected screen into the EGUI Window
     pub fn draw(
         &mut self,
         ui: &mut egui::Ui,

@@ -1,4 +1,5 @@
 use bevy_egui::egui;
+use bevy_egui::egui::TextEdit;
 use bevy_egui::egui::Vec2;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
@@ -24,17 +25,18 @@ impl Screen for MainScreen {
     fn draw_with_keyboard(
         &mut self,
         ui: &mut egui::Ui,
-        ctx: &mut egui::Context,
+        _ctx: &mut egui::Context,
         keyboard: &mut Keyboard,
         work_area: Vec2,
     ) {
-        println!("screen_size: {}", work_area);
         let style = ui.style_mut();
         if let Some(style) =
             style.text_styles.get_mut(&egui::TextStyle::Body)
         {
             style.size = 18.0;
         }
+        let mut work_area = work_area;
+        work_area.y = 0.;
 
         tui(ui, ui.id().with("demo"))
             .reserve_space(work_area)
@@ -54,7 +56,7 @@ impl Screen for MainScreen {
             .show(|tui| {
                 tui.ui(|ui| {
                     ui.vertical_centered_justified(|ui| {
-                        ui.text_edit_singleline(&mut self.text);
+                        ui.add(TextEdit::multiline(&mut self.text));
                     });
                     keyboard.base.show(ui)
                 })

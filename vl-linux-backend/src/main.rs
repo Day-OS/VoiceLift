@@ -74,7 +74,7 @@ async fn main() {
     // create RPC
     let crpc = RpcClient::new(core_client, handlers);
 
-    log::info!("Waiting for frames to {}", BROKER_NAME);
+    log::info!("Waiting for frames to {BROKER_NAME}");
     // set broker client, optional, allows to spawn fifo servers, the client is wrapped in
     // Arc<Mutex<_>> as it is cloned for each fifo spawned and can be got back with core_rpc_client
     // broker method

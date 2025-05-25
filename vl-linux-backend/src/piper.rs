@@ -68,13 +68,13 @@ impl PiperTTSManager {
         let buf = stream_to_sample_buffer(audio)?;
 
         self.rodio_sink.append(buf);
-        log::info!("Playing audio... {}", text);
+        log::info!("Playing audio... {text}");
         self.rodio_sink.sleep_until_end();
         Ok(())
     }
 
     pub fn get_handle_name() -> String {
-        format!("alsa_playback.{}", CARGO_PKG_NAME)
+        format!("alsa_playback.{CARGO_PKG_NAME}")
     }
 }
 
