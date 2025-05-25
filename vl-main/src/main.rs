@@ -1,18 +1,9 @@
 // Demo of client RPC with no handler which just calls methods
 //
 // use client_rpc_handler example to test client/server
-use async_lock::Mutex;
-use base_managers::tts_manager::TtsManager;
-use base_managers::{
-    device_linker::DeviceLinker, device_manager::DeviceManager,
-};
+#![feature(core_intrinsics)]
 use bevy::prelude::bevy_main;
-use log::LevelFilter;
-use simplelog::{
-    ColorChoice, CombinedLogger, ConfigBuilder, TermLogger,
-    TerminalMode,
-};
-use std::sync::Arc;
+use futures::executor;
 pub mod base_managers;
 pub mod desktop;
 pub mod ui;
@@ -22,10 +13,7 @@ pub mod ui;
 // #[cfg(target_os = "linux")]
 // use desktop::linux::linux_tts_manager;
 
-// the `bevy_main` proc_macro generates the required boilerplate for Android
 #[bevy_main]
-/// The entry point for the application. Is `pub` so that it can be used from
-/// `main.rs`.
 pub fn main() {
     ui::bevy_app::run();
 }

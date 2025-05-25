@@ -14,26 +14,25 @@ bevy = { version = "0.16.0", default-features = false, features = [
     # "android_shared_stdcxx",
     "bevy_log",
     "bevy_asset",
-    "bevy_audio",
+    # "bevy_audio",
     "bevy_winit",
-    "ktx2",
     "multi_threaded",
     "png",
-    "sysinfo_plugin",
-    "tonemapping_luts",
     "vorbis",
     "webgl2",
-    # "x11",
-    "wayland",
+    "x11",
+    # "wayland",
     "zstd",
+    "tonemapping_luts",
 ] }
 bevy_egui = "0.34.1"
 busrt = { version = "0.4.19", features = ["ipc", "rpc"] }
+egui_taffy = "0.7.0"
 egui_virtual_keyboard = { path = "../egui_virtual_keyboard" }
 futures = "0.3.31"
 jni = "0.21.1"
 log = "0.4.27"
-ndk-context = "0.1.1"
+# ndk-context = "0.1.1"
 rmp-serde = "1.3.0"
 serde = "1.0.219"
 simplelog = "0.12.2"

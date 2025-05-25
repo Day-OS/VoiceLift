@@ -1,24 +1,35 @@
+use std::sync::Arc;
+
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
 
-use crate::desktop::virtual_keyboard::{
-    Keyboard, keyboard_input_event, keyboard_output_event,
-};
+use async_lock::{Mutex, RwLock};
 use bevy::{
+    ecs::entity::unique_slice::Windows,
     log::{Level, LogPlugin},
+    platform::collections::HashMap,
     prelude::*,
-    window::{CursorOptions, WindowMode, WindowResolution},
-    winit::WinitSettings,
+    window::{
+        CursorOptions, WindowMode, WindowResized, WindowResolution,
+    },
 };
 use bevy_egui::{
     EguiContextPass, EguiContexts, EguiPlugin,
-    egui::{self, Frame},
+    egui::{self, Color32, CornerRadius, Frame, Margin, Vec2},
+};
+
+use super::screens::{
+    Screen, ScreenManager, main_screen::MainScreen,
 };
 
 pub fn run() {
-    let mut app = App::new();
+    let mut app: App = App::new();
     app.insert_resource(ClearColor(Color::NONE));
-    app.insert_resource(Keyboard::default());
+    let mut main_screen = MainScreen::default();
+    let mut screen_manager =
+        ScreenManager::new(Arc::new(RwLock::new(main_screen)));
+    screen_manager.register_systems(&mut app);
+    app.insert_resource(screen_manager);
     app.insert_resource(LoremIpsum::default());
     app.add_plugins(
         DefaultPlugins
@@ -41,16 +52,12 @@ pub fn run() {
                     transparent: true,
                     decorations: false,
                     resizable: false,
-                    resolution: WindowResolution::new(400., 400.),
+                    resolution: WindowResolution::new(100., 100.),
                     fullsize_content_view: false,
                     position: WindowPosition::Centered(
                         MonitorSelection::Current,
                     ),
                     mode: WindowMode::Windowed,
-                    // on iOS, gestures must be enabled.
-                    // This doesn't work on Android
-                    recognize_rotation_gesture: true,
-                    // Only has an effect on iOS
                     ..default()
                 }),
                 ..default()
@@ -61,13 +68,10 @@ pub fn run() {
     .add_plugins(EguiPlugin {
         enable_multipass_for_primary_context: true,
     })
-    .add_systems(EguiContextPass, ui_example_system)
-    .add_systems(
-        Update,
-        (keyboard_input_event, keyboard_output_event),
-    )
+    .add_systems(EguiContextPass, egui_screen)
+    .add_systems(Update, on_resize_system)
     // .add_systems(Update, keyboard_test)
-    .insert_resource(WinitSettings::mobile())
+    // .insert_resource(WinitSettings::mobile())
     // .add_event::<VirtualKeyboardEvent>()
     .run();
 }
@@ -96,26 +100,60 @@ impl Default for LoremIpsum {
 //     }
 // }
 
-fn ui_example_system(
-    mut text: ResMut<LoremIpsum>,
-    mut contexts: EguiContexts,
-    mut keyboard: ResMut<Keyboard>,
-) {
-    let ctx = contexts.ctx_mut();
-    let ss = ctx.screen_rect().size();
-    let screen_size = bevy_egui::egui::Vec2 { x: ss.x, y: ss.y };
+fn on_resize_system(mut resize_reader: EventReader<WindowResized>) {
+    for e in resize_reader.read() {
+        // When resolution is being changed
+        println!("{:.1} x {:.1}", e.width, e.height);
+    }
+}
 
-    egui::Window::new("Hello")
+fn egui_screen(
+    mut contexts: EguiContexts,
+    mut screen: ResMut<ScreenManager>,
+    mut window: Single<&mut Window>,
+) {
+    let mut screen_size = screen.get_size();
+    window.resolution.set(screen_size.x, screen_size.y);
+    window.position.center(MonitorSelection::Current);
+    // window.mode =
+    // WindowMode::BorderlessFullscreen(MonitorSelection::Current);
+
+    let ctx = contexts.ctx_mut();
+    let stroke: f32 = 6.;
+    let margin: i8 = 10;
+    screen_size = screen_size
+        - Vec2 {
+            x: stroke * 2.,
+            y: stroke * 2.,
+        }
+        - Vec2 {
+            x: (margin * 2) as f32,
+            y: (margin * 2) as f32,
+        };
+    egui::Window::new("MainScreen")
         .anchor(egui::Align2::LEFT_TOP, bevy_egui::egui::Vec2::ZERO)
-        .frame(Frame::NONE)
+        .frame(Frame {
+            fill: Color32::from_rgb(128, 128, 128),
+            inner_margin: Margin {
+                left: margin,
+                right: margin,
+                top: margin,
+                bottom: margin,
+            },
+            stroke: egui::Stroke::new(
+                stroke,
+                Color32::from_rgb(0, 0, 0),
+            ),
+            corner_radius: CornerRadius::ZERO,
+            outer_margin: Margin::ZERO,
+            shadow: egui::Shadow::NONE,
+        })
         .default_rect(ctx.screen_rect())
-        .fixed_size(screen_size)
+        .fixed_size(Vec2 { x: 10., y: 10. })
         .resizable(false)
         .collapsible(false)
         .title_bar(false)
-        .show(contexts.ctx_mut(), |ui| {
-            ui.label("world");
-            ui.text_edit_multiline(&mut text.0);
-            keyboard.base.show(ui)
+        .show(&ctx.clone(), |ui| {
+            screen.draw(ui, ctx, screen_size);
         });
 }
