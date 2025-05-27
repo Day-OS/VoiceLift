@@ -15,6 +15,8 @@ use futures::executor;
 
 use bevy_egui::egui::Vec2;
 
+use crate::base_managers::ModuleManager;
+
 use super::virtual_keyboard::Keyboard;
 
 #[derive(thiserror::Error, Debug)]
@@ -27,6 +29,7 @@ pub trait Screen: Sync + Send {
     fn uses_keyboard(&self) -> bool;
     fn draw(
         &mut self,
+        module_manager: &mut ResMut<'_, ModuleManager>,
         ui: &mut egui::Ui,
         ctx: &mut egui::Context,
         work_area: Vec2,
@@ -34,6 +37,7 @@ pub trait Screen: Sync + Send {
     }
     fn draw_with_keyboard(
         &mut self,
+        module_manager: &mut ResMut<'_, ModuleManager>,
         ui: &mut egui::Ui,
         ctx: &mut egui::Context,
         keyboard: &mut Keyboard,
@@ -99,6 +103,7 @@ impl ScreenManager {
     /// Draw the current selected screen into the EGUI Window
     pub fn draw(
         &mut self,
+        module_manager: &mut ResMut<'_, ModuleManager>,
         ui: &mut egui::Ui,
         ctx: &mut egui::Context,
         work_area: Vec2,
@@ -107,13 +112,14 @@ impl ScreenManager {
             executor::block_on(self.selected_screen.write());
         if selected_screen.uses_keyboard() {
             selected_screen.draw_with_keyboard(
+                module_manager,
                 ui,
                 ctx,
                 &mut self.keyboard,
                 work_area,
             );
         } else {
-            selected_screen.draw(ui, ctx, work_area);
+            selected_screen.draw(module_manager, ui, ctx, work_area);
         }
     }
 

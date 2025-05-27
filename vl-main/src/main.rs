@@ -8,11 +8,6 @@ pub mod base_managers;
 pub mod desktop;
 pub mod ui;
 
-// #[cfg(target_os = "linux")]
-// use desktop::linux::linux_device_manager;
-// #[cfg(target_os = "linux")]
-// use desktop::linux::linux_tts_manager;
-
 #[bevy_main]
 pub fn main() {
     ui::bevy_app::run();

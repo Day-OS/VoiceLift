@@ -500,6 +500,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy-tokio-tasks"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8bc6d56d7d8e0ff9391db5aae435b61e056e4b674514de56cd47cf8911f697a"
+dependencies = [
+ "bevy_app",
+ "bevy_ecs",
+ "tokio",
+]
+
+[[package]]
 name = "bevy_a11y"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2166,6 +2177,24 @@ dependencies = [
  "nohash-hasher",
  "profiling",
  "serde",
+]
+
+[[package]]
+name = "egui-notify"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ab6bab52b2ef6d7ba32697da10a2ae7d3e8a245f9da42f62826af3afcd8fdc3"
+dependencies = [
+ "egui",
+]
+
+[[package]]
+name = "egui_material_icons"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a8fbdd1ecd47e2308795f3a79fc3b61456191b9276766b0009d9bcff72330ad"
+dependencies = [
+ "egui",
 ]
 
 [[package]]
@@ -5528,9 +5557,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.45.0"
+version = "1.45.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2513ca694ef9ede0fb23fe71a4ee4107cb102b9dc1930f6d0fd77aae068ae165"
+checksum = "75ef51a33ef1da925cea3e4eb122833cb377c61439ca401b770f54902b806779"
 dependencies = [
  "backtrace",
  "bytes",
@@ -5872,13 +5901,17 @@ version = "0.1.0"
 dependencies = [
  "async-lock 3.4.0",
  "bevy",
+ "bevy-tokio-tasks",
  "bevy_egui",
  "busrt",
+ "egui-notify",
+ "egui_material_icons",
  "egui_taffy",
  "egui_virtual_keyboard",
  "futures",
  "jni",
  "log",
+ "paste",
  "rmp-serde",
  "serde",
  "simplelog",

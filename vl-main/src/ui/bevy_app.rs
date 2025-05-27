@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
-
+use crate::base_managers::{
+    ModuleManager, initialize_module_manager,
+};
 use async_lock::{Mutex, RwLock};
 use bevy::{
     ecs::entity::unique_slice::Windows,
@@ -17,6 +19,10 @@ use bevy_egui::{
     EguiContextPass, EguiContexts, EguiPlugin,
     egui::{self, Color32, CornerRadius, Frame, Margin, Vec2},
 };
+use bevy_tokio_tasks::TokioTasksPlugin;
+use egui_notify::Toasts;
+use futures::executor;
+use std::time::Duration;
 
 use super::screens::{
     Screen, ScreenManager, main_screen::MainScreen,
@@ -30,6 +36,9 @@ pub fn run() {
         ScreenManager::new(Arc::new(RwLock::new(main_screen)));
     screen_manager.register_systems(&mut app);
     app.insert_resource(screen_manager);
+    app.insert_resource(ModuleManager::new());
+    app.add_systems(Startup, initialize_module_manager);
+    app.add_plugins(TokioTasksPlugin::default());
     app.add_plugins(
         DefaultPlugins
             .set(LogPlugin {
@@ -76,6 +85,7 @@ pub fn run() {
 
 fn egui_screen(
     mut contexts: EguiContexts,
+    mut module_manager: ResMut<ModuleManager>,
     mut screen: ResMut<ScreenManager>,
     mut window: Single<&mut Window>,
 ) {
@@ -86,6 +96,8 @@ fn egui_screen(
     // WindowMode::BorderlessFullscreen(MonitorSelection::Current);
 
     let ctx = contexts.ctx_mut();
+
+    egui_material_icons::initialize(ctx);
     let stroke: f32 = 6.;
     let margin: i8 = 10;
     screen_size = screen_size
@@ -121,7 +133,7 @@ fn egui_screen(
         .collapsible(false)
         .title_bar(false)
         .show(&ctx.clone(), |ui| {
-            screen.draw(ui, ctx, screen_size);
+            screen.draw(&mut module_manager, ui, ctx, screen_size);
         });
 
     if let Some(inner) = window_response {
