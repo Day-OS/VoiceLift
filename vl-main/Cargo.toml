@@ -3,6 +3,7 @@ name = "vl-main"
 version = "0.1.0"
 edition = "2024"
 
+
 [lib]
 name = "vl_main"
 crate-type = ["lib", "cdylib"]
@@ -45,4 +46,5 @@ tokio = "1.45.1"
 vl-global = { path = "../vl-global" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-vl-linux-backend = { path = "../vl-linux-backend" }
+vl-linux-backend = { path = "../vl-linux-backend", default-features = false, features = [
+] }

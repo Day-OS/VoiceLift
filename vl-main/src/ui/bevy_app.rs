@@ -11,6 +11,12 @@ use bevy::{
     log::{Level, LogPlugin},
     platform::collections::HashMap,
     prelude::*,
+    render::{
+        RenderApp,
+        batching::gpu_preprocessing::{
+            GpuPreprocessingMode, GpuPreprocessingSupport,
+        },
+    },
     window::{
         CursorOptions, WindowMode, WindowResized, WindowResolution,
     },
@@ -25,7 +31,8 @@ use futures::executor;
 use std::time::Duration;
 
 use super::screens::{
-    Screen, ScreenManager, main_screen::MainScreen,
+    Screen, ScreenEvent, ScreenManager, config_screen::ConfigScreen,
+    main_screen::MainScreen, screen_event_handler,
 };
 
 pub fn run() {
@@ -34,9 +41,12 @@ pub fn run() {
     let main_screen = MainScreen::default();
     let mut screen_manager =
         ScreenManager::new(Arc::new(RwLock::new(main_screen)));
+    screen_manager
+        .add_screen(Arc::new(RwLock::new(ConfigScreen::default())));
     screen_manager.register_systems(&mut app);
     app.insert_resource(screen_manager);
     app.insert_resource(ModuleManager::new());
+    app.add_event::<ScreenEvent>();
     app.add_systems(Startup, initialize_module_manager);
     app.add_plugins(TokioTasksPlugin::default());
     app.add_plugins(
@@ -76,11 +86,16 @@ pub fn run() {
     .add_plugins(EguiPlugin {
         enable_multipass_for_primary_context: true,
     })
-    .add_systems(EguiContextPass, egui_screen)
+    .add_systems(EguiContextPass, egui_screen);
     // .add_systems(Update, keyboard_test)
     // .insert_resource(WinitSettings::mobile())
     // .add_event::<VirtualKeyboardEvent>()
-    .run();
+    app.sub_app_mut(RenderApp).insert_resource(
+        GpuPreprocessingSupport {
+            max_supported_mode: GpuPreprocessingMode::None,
+        },
+    );
+    app.run();
 }
 
 fn egui_screen(
@@ -88,6 +103,7 @@ fn egui_screen(
     mut module_manager: ResMut<ModuleManager>,
     mut screen: ResMut<ScreenManager>,
     mut window: Single<&mut Window>,
+    mut scree_event_w: EventWriter<ScreenEvent>,
 ) {
     let mut screen_size = screen.get_size();
     window.resolution.set(screen_size.x, screen_size.y);
@@ -133,7 +149,13 @@ fn egui_screen(
         .collapsible(false)
         .title_bar(false)
         .show(&ctx.clone(), |ui| {
-            screen.draw(&mut module_manager, ui, ctx, screen_size);
+            screen.draw(
+                &mut module_manager,
+                &mut scree_event_w,
+                ui,
+                ctx,
+                screen_size,
+            );
         });
 
     if let Some(inner) = window_response {

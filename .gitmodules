@@ -1,0 +1,7 @@
+[submodule "easy-pw"]
+	path = easy-pw
+	url = https://github.com/Day-OS/easy-pw.git
+
+[submodule "egui_virtual_keyboard"]
+	path = egui_virtual_keyboard
+	url = https://github.com/Day-OS/egui_virtual_keyboard.git

@@ -1,10 +1,11 @@
 use std::{intrinsics::type_name, sync::Arc};
+pub mod config_screen;
 pub mod main_screen;
 use async_lock::RwLock;
 use bevy::{
     app::Update,
     ecs::{
-        event::{EventReader, EventWriter},
+        event::{Event, EventReader, EventWriter},
         resource::Resource,
         system::ResMut,
     },
@@ -25,11 +26,20 @@ pub enum ScreenError {
     ScreenNotFound(String),
 }
 
+#[derive(Event)]
+pub enum ScreenEvent {
+    ScreenChangeEvent {
+        /// The screen that was ordered to be changed to
+        screen_name: String,
+    },
+}
+
 pub trait Screen: Sync + Send {
     fn uses_keyboard(&self) -> bool;
     fn draw(
         &mut self,
         module_manager: &mut ResMut<'_, ModuleManager>,
+        screen_event_w: &mut EventWriter<ScreenEvent>,
         ui: &mut egui::Ui,
         ctx: &mut egui::Context,
         work_area: Vec2,
@@ -38,6 +48,7 @@ pub trait Screen: Sync + Send {
     fn draw_with_keyboard(
         &mut self,
         module_manager: &mut ResMut<'_, ModuleManager>,
+        screen_event_w: &mut EventWriter<ScreenEvent>,
         ui: &mut egui::Ui,
         ctx: &mut egui::Context,
         keyboard: &mut Keyboard,
@@ -45,6 +56,12 @@ pub trait Screen: Sync + Send {
     ) {
     }
     fn get_screen_name(&self) -> &'static str {
+        type_name::<Self>()
+    }
+    fn get_name() -> &'static str
+    where
+        Self: Sized,
+    {
         type_name::<Self>()
     }
     fn get_size(&self) -> Vec2;
@@ -69,7 +86,7 @@ impl ScreenManager {
             keyboard: Keyboard::default(),
         }
     }
-    fn apply_screen(
+    pub fn apply_screen(
         &mut self,
         screen_name: &String,
     ) -> Result<(), ScreenError> {
@@ -79,7 +96,7 @@ impl ScreenManager {
         self.selected_screen = screen.clone();
         Ok(())
     }
-    fn add_screen(&mut self, screen: Arc<RwLock<dyn Screen>>) {
+    pub fn add_screen(&mut self, screen: Arc<RwLock<dyn Screen>>) {
         Self::_add_screen(&mut self.screens, screen)
     }
     fn _add_screen(
@@ -98,12 +115,14 @@ impl ScreenManager {
     pub fn register_systems(&mut self, app: &mut bevy::app::App) {
         app.add_systems(Update, keyboard_input_event);
         app.add_systems(Update, keyboard_output_event);
+        app.add_systems(Update, screen_event_handler);
     }
 
     /// Draw the current selected screen into the EGUI Window
     pub fn draw(
         &mut self,
         module_manager: &mut ResMut<'_, ModuleManager>,
+        screen_event_w: &mut EventWriter<ScreenEvent>,
         ui: &mut egui::Ui,
         ctx: &mut egui::Context,
         work_area: Vec2,
@@ -113,13 +132,20 @@ impl ScreenManager {
         if selected_screen.uses_keyboard() {
             selected_screen.draw_with_keyboard(
                 module_manager,
+                screen_event_w,
                 ui,
                 ctx,
                 &mut self.keyboard,
                 work_area,
             );
         } else {
-            selected_screen.draw(module_manager, ui, ctx, work_area);
+            selected_screen.draw(
+                module_manager,
+                screen_event_w,
+                ui,
+                ctx,
+                work_area,
+            );
         }
     }
 
@@ -130,7 +156,7 @@ impl ScreenManager {
     }
 }
 
-// Keybpard
+// Keyboard
 pub fn keyboard_output_event(
     mut screen: ResMut<ScreenManager>,
     event_w: EventWriter<EguiInputEvent>,
@@ -143,4 +169,24 @@ pub fn keyboard_input_event(
     event_r: EventReader<EguiInputEvent>,
 ) {
     screen.keyboard.read_events(event_r)
+}
+
+pub fn screen_event_handler(
+    mut manager: ResMut<ScreenManager>,
+    mut event_r: EventReader<ScreenEvent>,
+) {
+    for event in event_r.read() {
+        match event {
+            ScreenEvent::ScreenChangeEvent { screen_name } => {
+                if let Err(e) = manager.apply_screen(screen_name) {
+                    log::error!(
+                        "Failed to change screen: {e}. Available screens are: {:?}",
+                        manager.screens.keys()
+                    );
+                    continue;
+                }
+                log::debug!("Changed screen to {screen_name}");
+            }
+        }
+    }
 }

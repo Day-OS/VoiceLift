@@ -13,3 +13,15 @@ The motivation behind this project is deeply personal. After being diagnosed wit
 At present, the project is in its early development phase. My focus is on building the core functionalities and designing an intuitive and inclusive user interface.
 
 This project will ALWAYS be FOSS, as I believe in the importance of open-source software for accessibility and inclusivity.
+
+`sudo apt install libespeak-ng-dev libsonic-dev libpcaudio-dev`
+
+`rustup update nightly`
+
+`rustup override set nightly`
+
+# Troubleshoot
+```
+unset WAYLAND_DISPLAY
+export DISPLAY=:0
+```

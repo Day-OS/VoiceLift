@@ -3,6 +3,7 @@ use std::default;
 use std::time::Duration;
 
 use bevy::app::Main;
+use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
 use bevy_egui::egui::Button;
@@ -17,7 +18,9 @@ use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use crate::base_managers::ModuleManager;
 use crate::ui::virtual_keyboard::Keyboard;
 
+use super::config_screen::ConfigScreen;
 use super::Screen;
+use super::ScreenEvent;
 
 #[derive(Default)]
 pub struct MainScreen {
@@ -66,6 +69,7 @@ impl Screen for MainScreen {
     fn draw_with_keyboard(
         &mut self,
         module_manager: &mut ResMut<'_, ModuleManager>,
+        screen_event_w: &mut EventWriter<ScreenEvent>,
         ui: &mut egui::Ui,
         _ctx: &mut egui::Context,
         keyboard: &mut Keyboard,
@@ -88,13 +92,10 @@ impl Screen for MainScreen {
             if keyboard.clicked(){
                 self.keyboard_enabled = !self.keyboard_enabled;
             }
-            ui.menu_button(format!("{} Módulos", egui_material_icons::icons::ICON_SDK), |ui|{
-
-                let keyboard = ui.button(format!("{} Ativar teclado Virtual", egui_material_icons::icons::ICON_KEYBOARD));
-                if keyboard.clicked(){
-                    self.keyboard_enabled = !self.keyboard_enabled;
+            let preferences = ui.button(format!("{} Preferências...", egui_material_icons::icons::ICON_KEYBOARD));
+            if preferences.clicked(){
+                screen_event_w.write(ScreenEvent::ScreenChangeEvent { screen_name: ConfigScreen::get_name().to_owned() });
             }
-        });
         });
 
         tui(ui, ui.id().with("demo"))
