@@ -29,6 +29,7 @@ use bevy_tokio_tasks::TokioTasksPlugin;
 use egui_notify::Toasts;
 use futures::executor;
 use std::time::Duration;
+use vl_global::vl_config::{ConfigManager, VlConfig};
 
 use super::screens::{
     Screen, ScreenEvent, ScreenManager, config_screen::ConfigScreen,
@@ -36,6 +37,9 @@ use super::screens::{
 };
 
 pub fn run() {
+    let app_config =
+        ConfigManager::new().expect("Config should be initialized");
+
     let mut app: App = App::new();
     app.insert_resource(ClearColor(Color::NONE));
     let main_screen = MainScreen::default();

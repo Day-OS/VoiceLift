@@ -2,11 +2,14 @@ pub(crate) mod device_linker;
 pub(crate) mod device_manager;
 pub(crate) mod tts_manager;
 
+use core::panic;
+use std::any::type_name;
 use std::sync::Arc;
 
 use async_lock::RwLock;
 use bevy::ecs::resource::Resource;
 use bevy::ecs::system::ResMut;
+use bevy::platform::collections::HashMap;
 use bevy_egui::egui;
 use bevy_tokio_tasks::TokioTasksRuntime;
 use device_linker::DeviceLinker;
@@ -28,15 +31,33 @@ pub trait Module: Debug + Send + Sync {
     fn start(
         &mut self,
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
+
+    fn get_screen_name(&self) -> &'static str {
+        let full_name = type_name::<Self>();
+        match full_name.rsplit("::").next() {
+            Some(name) => name,
+            None => full_name,
+        }
+    }
+    fn get_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        let full_name = type_name::<Self>();
+        match full_name.rsplit("::").next() {
+            Some(name) => name,
+            None => full_name,
+        }
+    }
 }
 
 #[derive(Resource)]
 pub struct ModuleManager {
     pub(super) toast: Toasts,
     pending_error_messages: Vec<String>,
-    device_linkers: Vec<Arc<RwLock<dyn DeviceLinker>>>,
-    device_managers: Vec<Arc<RwLock<dyn DeviceManager>>>,
-    tts_managers: Vec<Arc<RwLock<dyn TtsManager>>>,
+    device_linkers: HashMap<String, Arc<RwLock<dyn DeviceLinker>>>,
+    device_managers: HashMap<String, Arc<RwLock<dyn DeviceManager>>>,
+    tts_managers: HashMap<String, Arc<RwLock<dyn TtsManager>>>,
     selected_device_linker: Option<Arc<RwLock<dyn DeviceLinker>>>,
     selected_device_manager: Option<Arc<RwLock<dyn DeviceManager>>>,
     selected_tts_manager: Option<Arc<RwLock<dyn TtsManager>>>,
@@ -80,9 +101,9 @@ impl ModuleManager {
         Self {
             toast: Toasts::default(),
             pending_error_messages: vec![],
-            device_linkers: vec![],
-            device_managers: vec![],
-            tts_managers: vec![],
+            device_linkers: HashMap::new(),
+            device_managers: HashMap::new(),
+            tts_managers: HashMap::new(),
             selected_device_linker: None,
             selected_device_manager: None,
             selected_tts_manager: None,
@@ -91,17 +112,20 @@ impl ModuleManager {
     pub async fn initialize(&mut self) -> &mut Self {
         #[cfg(target_os = "linux")]
         {
-            let linux_module = Arc::new(RwLock::new(
-                linux_module::LinuxModule::new().await,
-            ));
+            let module = linux_module::LinuxModule::new().await;
+            let module_name = module.get_screen_name();
+            let linux_module = Arc::new(RwLock::new(module));
 
-            self.device_linkers.push(linux_module.clone());
+            self.device_linkers
+                .insert(module_name.to_owned(), linux_module.clone());
             self.selected_device_linker = Some(linux_module.clone());
 
-            self.device_managers.push(linux_module.clone());
+            self.device_managers
+                .insert(module_name.to_owned(), linux_module.clone());
             self.selected_device_manager = Some(linux_module.clone());
 
-            self.tts_managers.push(linux_module.clone());
+            self.tts_managers
+                .insert(module_name.to_owned(), linux_module.clone());
             self.selected_tts_manager = Some(linux_module.clone())
         }
         self
@@ -121,7 +145,6 @@ impl ModuleManager {
     }
 }
 
-/// This system should initialize the module as soon as it starts... I hope
 pub fn initialize_module_manager(
     mut module_manager: ResMut<ModuleManager>,
     runtime: ResMut<TokioTasksRuntime>,
