@@ -1,6 +1,6 @@
-use super::device_manager::DeviceManager;
-use super::tts_manager::TtsManager;
-use crate::base_managers::Module;
+use super::device_module::DeviceModule;
+use super::tts_module::TtsModule;
+use crate::base_modules::Module;
 #[cfg(target_os = "linux")]
 use crate::desktop::linux::linux_module;
 use async_lock::RwLock;
@@ -21,12 +21,12 @@ pub struct ModuleManager {
     pub file_dialog: Arc<RwLock<FileDialog>>,
     pub(super) toast: Toasts,
     pending_error_messages: Vec<String>,
-    device_managers: HashMap<String, Arc<RwLock<dyn DeviceManager>>>,
-    tts_managers: HashMap<String, Arc<RwLock<dyn TtsManager>>>,
+    device_managers: HashMap<String, Arc<RwLock<dyn DeviceModule>>>,
+    tts_managers: HashMap<String, Arc<RwLock<dyn TtsModule>>>,
     pub(super) selected_device_manager:
-        Option<Arc<RwLock<dyn DeviceManager>>>,
+        Option<Arc<RwLock<dyn DeviceModule>>>,
     pub(super) selected_tts_manager:
-        Option<Arc<RwLock<dyn TtsManager>>>,
+        Option<Arc<RwLock<dyn TtsModule>>>,
 }
 
 impl Default for ModuleManager {

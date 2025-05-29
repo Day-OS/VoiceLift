@@ -11,12 +11,12 @@ fn is_capable_of_linking_error(capacity: bool) -> String {
     return "This module is not capable of linking devices. Please check your code.".to_string();
 }
 
-pub trait DeviceManager: Module {
+pub trait DeviceModule: Module {
     fn get_devices(
         &self,
     ) -> BoxFuture<Result<AudioDevices, Box<dyn std::error::Error>>>;
     fn get_module_type(&self) -> &'static str {
-        "Device Manager"
+        "Device Module"
     }
     fn is_capable_of_linking(&self) -> bool {
         false

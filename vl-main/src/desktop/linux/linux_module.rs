@@ -1,5 +1,5 @@
-use crate::base_managers::tts_manager::TtsManager;
-use crate::base_managers::{Module, device_manager::DeviceManager};
+use crate::base_modules::tts_module::TtsModule;
+use crate::base_modules::{Module, device_module::DeviceModule};
 use busrt::QoS;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::{Rpc, RpcClient};
@@ -64,7 +64,7 @@ impl Module for LinuxModule {
     }
 }
 
-impl DeviceManager for LinuxModule {
+impl DeviceModule for LinuxModule {
     fn get_devices(
         &self,
     ) -> BoxFuture<Result<AudioDevices, Box<dyn std::error::Error>>>
@@ -201,7 +201,7 @@ impl Debug for LinuxModule {
     }
 }
 
-impl TtsManager for LinuxModule {
+impl TtsModule for LinuxModule {
     fn speak(
         &self,
         text: String,

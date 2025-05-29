@@ -2,7 +2,7 @@
 #![feature(core_intrinsics)]
 
 use bevy::prelude::*;
-pub mod base_managers;
+pub mod base_modules;
 pub mod desktop;
 pub mod ui;
 

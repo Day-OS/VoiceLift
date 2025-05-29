@@ -16,7 +16,7 @@ use futures::executor;
 
 use bevy_egui::egui::Vec2;
 
-use crate::base_managers::module_manager::ModuleManager;
+use crate::base_modules::module_manager::ModuleManager;
 
 use super::virtual_keyboard::Keyboard;
 

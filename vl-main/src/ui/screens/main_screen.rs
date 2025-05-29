@@ -12,7 +12,7 @@ use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 
-use crate::base_managers::module_manager::ModuleManager;
+use crate::base_modules::module_manager::ModuleManager;
 
 use crate::ui::virtual_keyboard::Keyboard;
 

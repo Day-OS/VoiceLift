@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
-use crate::base_managers::initialize_module_manager;
-use crate::base_managers::module_manager::ModuleManager;
+use crate::base_modules::initialize_module_manager;
+use crate::base_modules::module_manager::ModuleManager;
 
 use async_lock::RwLock;
 use bevy::{

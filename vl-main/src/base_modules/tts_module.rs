@@ -5,7 +5,7 @@ use vl_global::AudioDevices;
 use super::Module;
 
 /// Responsible for managing TTS
-pub trait TtsManager: Module {
+pub trait TtsModule: Module {
     fn speak(
         &self,
         text: String,
@@ -16,6 +16,6 @@ pub trait TtsManager: Module {
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
 
     fn get_module_type(&self) -> &'static str {
-        "TTS Manager"
+        "TTS Module"
     }
 }

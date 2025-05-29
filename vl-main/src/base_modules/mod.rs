@@ -1,6 +1,6 @@
-pub(crate) mod device_manager;
+pub(crate) mod device_module;
 pub(crate) mod module_manager;
-pub(crate) mod tts_manager;
+pub(crate) mod tts_module;
 
 use std::any::type_name;
 use std::sync::Arc;
@@ -11,18 +11,18 @@ use bevy::ecs::system::ResMut;
 use bevy::platform::collections::HashMap;
 use bevy_egui::egui;
 use bevy_tokio_tasks::TokioTasksRuntime;
-use device_manager::DeviceManager;
+use device_module::DeviceModule;
 use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
 use futures::executor;
 use futures::future::BoxFuture;
 use paste::paste;
 use std::fmt::Debug;
-use tts_manager::TtsManager;
+use tts_module::TtsModule;
 use vl_global::vl_config::ConfigManager;
 use vl_global::vl_config::VlConfig;
 
-use crate::base_managers::module_manager::ModuleManager;
+use crate::base_modules::module_manager::ModuleManager;
 #[cfg(target_os = "linux")]
 use crate::desktop::linux::linux_module;
 

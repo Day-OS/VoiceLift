@@ -3,7 +3,7 @@
 // use client_rpc_handler example to test client/server
 #![feature(core_intrinsics)]
 use bevy::prelude::bevy_main;
-pub mod base_managers;
+pub mod base_modules;
 pub mod desktop;
 pub mod ui;
 
