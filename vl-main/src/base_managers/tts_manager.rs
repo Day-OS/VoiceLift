@@ -14,4 +14,8 @@ pub trait TtsManager: Module {
     fn stop_speaking(
         &self,
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
+
+    fn get_module_type(&self) -> &'static str {
+        "TTS Manager"
+    }
 }

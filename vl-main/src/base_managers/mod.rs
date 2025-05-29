@@ -1,8 +1,8 @@
 pub(crate) mod device_linker;
 pub(crate) mod device_manager;
+pub(crate) mod module_manager;
 pub(crate) mod tts_manager;
 
-use core::panic;
 use std::any::type_name;
 use std::sync::Arc;
 
@@ -14,13 +14,17 @@ use bevy_egui::egui;
 use bevy_tokio_tasks::TokioTasksRuntime;
 use device_linker::DeviceLinker;
 use device_manager::DeviceManager;
+use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
 use futures::executor;
 use futures::future::BoxFuture;
 use paste::paste;
 use std::fmt::Debug;
 use tts_manager::TtsManager;
+use vl_global::vl_config::ConfigManager;
+use vl_global::vl_config::VlConfig;
 
+use crate::base_managers::module_manager::ModuleManager;
 #[cfg(target_os = "linux")]
 use crate::desktop::linux::linux_module;
 
@@ -48,100 +52,6 @@ pub trait Module: Debug + Send + Sync {
             Some(name) => name,
             None => full_name,
         }
-    }
-}
-
-#[derive(Resource)]
-pub struct ModuleManager {
-    pub(super) toast: Toasts,
-    pending_error_messages: Vec<String>,
-    device_linkers: HashMap<String, Arc<RwLock<dyn DeviceLinker>>>,
-    device_managers: HashMap<String, Arc<RwLock<dyn DeviceManager>>>,
-    tts_managers: HashMap<String, Arc<RwLock<dyn TtsManager>>>,
-    selected_device_linker: Option<Arc<RwLock<dyn DeviceLinker>>>,
-    selected_device_manager: Option<Arc<RwLock<dyn DeviceManager>>>,
-    selected_tts_manager: Option<Arc<RwLock<dyn TtsManager>>>,
-}
-
-impl Default for ModuleManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[macro_export]
-macro_rules! are_modules_started {
-    ( $( $field:ident ),* ) => {
-        paste! {
-            $(
-                pub fn [<is_ $field _started>](&self) -> bool {
-                    if let Some(module) = &self.[<selected_ $field>] {
-                        let module = executor::block_on(module.read());
-                        return module.is_started();
-                    }
-                    false
-                }
-            )*
-            pub fn is_started(&self) -> bool {
-                let checks: Vec<bool> = vec![
-                    $(
-                        self.[<is_ $field _started>](),
-                    )*
-                ];
-
-                let all_true = checks.iter().all(|&b| b);
-                all_true
-            }
-        }
-    };
-}
-
-impl ModuleManager {
-    pub fn new() -> Self {
-        Self {
-            toast: Toasts::default(),
-            pending_error_messages: vec![],
-            device_linkers: HashMap::new(),
-            device_managers: HashMap::new(),
-            tts_managers: HashMap::new(),
-            selected_device_linker: None,
-            selected_device_manager: None,
-            selected_tts_manager: None,
-        }
-    }
-    pub async fn initialize(&mut self) -> &mut Self {
-        #[cfg(target_os = "linux")]
-        {
-            let module = linux_module::LinuxModule::new().await;
-            let module_name = module.get_screen_name();
-            let linux_module = Arc::new(RwLock::new(module));
-
-            self.device_linkers
-                .insert(module_name.to_owned(), linux_module.clone());
-            self.selected_device_linker = Some(linux_module.clone());
-
-            self.device_managers
-                .insert(module_name.to_owned(), linux_module.clone());
-            self.selected_device_manager = Some(linux_module.clone());
-
-            self.tts_managers
-                .insert(module_name.to_owned(), linux_module.clone());
-            self.selected_tts_manager = Some(linux_module.clone())
-        }
-        self
-    }
-    are_modules_started! {device_manager, device_linker, tts_manager}
-
-    pub fn error(&mut self, text: String) {
-        self.pending_error_messages.push(text);
-    }
-    pub fn _throw_error_message(&mut self, ctx: &mut egui::Context) {
-        for error in &self.pending_error_messages {
-            self.toast.error(error);
-            log::error!("{error}");
-        }
-        self.pending_error_messages.clear();
-        self.toast.show(ctx);
     }
 }
 

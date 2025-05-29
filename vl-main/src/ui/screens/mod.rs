@@ -16,7 +16,7 @@ use futures::executor;
 
 use bevy_egui::egui::Vec2;
 
-use crate::base_managers::ModuleManager;
+use crate::base_managers::module_manager::ModuleManager;
 
 use super::virtual_keyboard::Keyboard;
 
@@ -35,7 +35,12 @@ pub enum ScreenEvent {
 }
 
 pub trait Screen: Sync + Send {
-    fn uses_keyboard(&self) -> bool;
+    fn uses_keyboard(&self) -> bool {
+        false
+    }
+    fn is_collapsable(&self) -> bool {
+        true
+    }
     fn draw(
         &mut self,
         module_manager: &mut ResMut<'_, ModuleManager>,
@@ -116,6 +121,12 @@ impl ScreenManager {
         app.add_systems(Update, keyboard_input_event);
         app.add_systems(Update, keyboard_output_event);
         app.add_systems(Update, screen_event_handler);
+    }
+
+    pub fn is_collapsable(&self) -> bool {
+        let selected_screen =
+            executor::block_on(self.selected_screen.read());
+        selected_screen.is_collapsable()
     }
 
     /// Draw the current selected screen into the EGUI Window

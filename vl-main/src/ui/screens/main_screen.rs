@@ -1,8 +1,5 @@
 use core::f32;
-use std::default;
-use std::time::Duration;
 
-use bevy::app::Main;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
@@ -15,7 +12,8 @@ use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 
-use crate::base_managers::ModuleManager;
+use crate::base_managers::module_manager::ModuleManager;
+
 use crate::ui::virtual_keyboard::Keyboard;
 
 use super::config_screen::ConfigScreen;
@@ -92,7 +90,7 @@ impl Screen for MainScreen {
             if keyboard.clicked(){
                 self.keyboard_enabled = !self.keyboard_enabled;
             }
-            let preferences = ui.button(format!("{} Preferências...", egui_material_icons::icons::ICON_KEYBOARD));
+            let preferences = ui.button(format!("{} Preferências...", egui_material_icons::icons::ICON_SETTINGS));
             if preferences.clicked(){
                 screen_event_w.write(ScreenEvent::ScreenChangeEvent { screen_name: ConfigScreen::get_name().to_owned() });
             }

@@ -11,4 +11,8 @@ pub trait DeviceLinker: DeviceManager {
         &self,
         target_device: String,
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
+
+    fn get_module_type(&self) -> &'static str {
+        "Device Linker Manager"
+    }
 }

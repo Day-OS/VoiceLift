@@ -2,14 +2,12 @@ use std::sync::Arc;
 
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
-use crate::base_managers::{
-    ModuleManager, initialize_module_manager,
-};
-use async_lock::{Mutex, RwLock};
+use crate::base_managers::initialize_module_manager;
+use crate::base_managers::module_manager::ModuleManager;
+
+use async_lock::RwLock;
 use bevy::{
-    ecs::entity::unique_slice::Windows,
     log::{Level, LogPlugin},
-    platform::collections::HashMap,
     prelude::*,
     render::{
         RenderApp,
@@ -17,29 +15,20 @@ use bevy::{
             GpuPreprocessingMode, GpuPreprocessingSupport,
         },
     },
-    window::{
-        CursorOptions, WindowMode, WindowResized, WindowResolution,
-    },
+    window::{CursorOptions, WindowMode, WindowResolution},
 };
 use bevy_egui::{
     EguiContextPass, EguiContexts, EguiPlugin,
     egui::{self, Color32, CornerRadius, Frame, Margin, Vec2},
 };
 use bevy_tokio_tasks::TokioTasksPlugin;
-use egui_notify::Toasts;
-use futures::executor;
-use std::time::Duration;
-use vl_global::vl_config::{ConfigManager, VlConfig};
 
 use super::screens::{
-    Screen, ScreenEvent, ScreenManager, config_screen::ConfigScreen,
-    main_screen::MainScreen, screen_event_handler,
+    ScreenEvent, ScreenManager, config_screen::ConfigScreen,
+    main_screen::MainScreen,
 };
 
 pub fn run() {
-    let app_config =
-        ConfigManager::new().expect("Config should be initialized");
-
     let mut app: App = App::new();
     app.insert_resource(ClearColor(Color::NONE));
     let main_screen = MainScreen::default();
@@ -109,14 +98,12 @@ fn egui_screen(
     mut window: Single<&mut Window>,
     mut scree_event_w: EventWriter<ScreenEvent>,
 ) {
-    let mut screen_size = screen.get_size();
-    window.resolution.set(screen_size.x, screen_size.y);
-    window.position.center(MonitorSelection::Current);
     // window.mode =
     // WindowMode::BorderlessFullscreen(MonitorSelection::Current);
 
     let ctx = contexts.ctx_mut();
 
+    let mut screen_size = screen.get_size();
     egui_material_icons::initialize(ctx);
     let stroke: f32 = 6.;
     let margin: i8 = 10;
@@ -132,7 +119,7 @@ fn egui_screen(
     let window_response = egui::Window::new("MainScreen")
         .anchor(egui::Align2::LEFT_TOP, bevy_egui::egui::Vec2::ZERO)
         .frame(Frame {
-            fill: Color32::from_rgb(128, 128, 128),
+            fill: Color32::from_rgb(32, 32, 32),
             inner_margin: Margin {
                 left: margin,
                 right: margin,
@@ -161,11 +148,15 @@ fn egui_screen(
                 screen_size,
             );
         });
-
-    if let Some(inner) = window_response {
-        let window_rect = inner.response.rect;
-        let size = window_rect.size();
-        window.resolution.set(size.x, size.y);
+    let mut new_resolution = Vec2::ZERO;
+    if screen.is_collapsable() {
+        if let Some(inner) = window_response {
+            let window_rect = inner.response.rect;
+            new_resolution = window_rect.size();
+        }
+    } else {
+        new_resolution = screen.get_size();
     }
+    window.resolution.set(new_resolution.x, new_resolution.y);
     window.position.center(MonitorSelection::Current);
 }

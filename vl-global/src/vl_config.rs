@@ -70,10 +70,13 @@ impl ConfigManager {
         self.modify_and_save(|_| {})
     }
 
-    pub fn modify_and_save(
+    pub fn modify_and_save<F>(
         &mut self,
-        callback: fn(vl_config: &mut VlConfig),
-    ) -> Result<(), ConfigError> {
+        callback: F,
+    ) -> Result<(), ConfigError>
+    where
+        F: for<'a> FnOnce(&'a mut VlConfig),
+    {
         let mut config: VlConfig =
             self.settings.clone().try_deserialize()?;
 
@@ -121,13 +124,19 @@ impl ConfigManager {
     Clone,
 )]
 pub struct VlConfig {
-    linux: Option<LinuxConfig>,
+    pub selected_device_linker: Option<String>,
+    pub selected_device_manager: Option<String>,
+    pub selected_tts_manager: Option<String>,
+    pub linux: Option<LinuxConfig>,
 }
 
 impl Default for VlConfig {
     fn default() -> Self {
         VlConfig {
             linux: Some(LinuxConfig::default()),
+            selected_device_linker: None,
+            selected_device_manager: None,
+            selected_tts_manager: None,
         }
     }
 }
@@ -143,8 +152,18 @@ impl Default for VlConfig {
     Default,
 )]
 pub struct LinuxConfig {
-    piper_tts_model: String,
+    pub piper_tts_model: String,
 }
+
+impl LinuxConfig {
+    pub fn validate_piper_tts_model(&self, path: &Path) -> bool {
+        path.exists()
+            && path.is_file()
+            && path.extension().and_then(|ext| ext.to_str())
+                == Some("json")
+    }
+}
+
 impl VlConfig {}
 
 //"/usr/share/piper-voices/pt/pt_BR/droidela-v2/medium/droidela-v2.onnx.json",

@@ -8,4 +8,7 @@ pub trait DeviceManager: Module {
     fn get_devices(
         &self,
     ) -> BoxFuture<Result<AudioDevices, Box<dyn std::error::Error>>>;
+    fn get_module_type(&self) -> &'static str {
+        "Device Manager"
+    }
 }
