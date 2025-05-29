@@ -1,6 +1,3 @@
-use std::sync::Arc;
-
-use super::device_linker::DeviceLinker;
 use super::device_manager::DeviceManager;
 use super::tts_manager::TtsManager;
 use crate::base_managers::Module;
@@ -14,6 +11,7 @@ use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
 use futures::executor;
 use paste::paste;
+use std::sync::Arc;
 use vl_global::vl_config::ConfigManager;
 use vl_global::vl_config::VlConfig;
 
@@ -23,11 +21,8 @@ pub struct ModuleManager {
     pub file_dialog: Arc<RwLock<FileDialog>>,
     pub(super) toast: Toasts,
     pending_error_messages: Vec<String>,
-    device_linkers: HashMap<String, Arc<RwLock<dyn DeviceLinker>>>,
     device_managers: HashMap<String, Arc<RwLock<dyn DeviceManager>>>,
     tts_managers: HashMap<String, Arc<RwLock<dyn TtsManager>>>,
-    pub(super) selected_device_linker:
-        Option<Arc<RwLock<dyn DeviceLinker>>>,
     pub(super) selected_device_manager:
         Option<Arc<RwLock<dyn DeviceManager>>>,
     pub(super) selected_tts_manager:
@@ -79,8 +74,8 @@ macro_rules! define_modules_fns {
                 }
 
                 fn [<show_config_ $field>](&mut self, ui: &mut egui::Ui, config: &mut VlConfig){
-                    if let Some(module) = self.[<selected_ $field>]{
-                        let alternatives = self.get_device_linkers();
+                    if let Some(module) = &self.[<selected_ $field>]{
+                        let alternatives = self.[<get_ $field s>]();
                         let module_type_name = executor::block_on(module.read()).get_module_type();
                         let mut selected =  config.[<selected_ $field>].clone();
                         if let Some(module_name) = &mut selected{
@@ -137,10 +132,8 @@ impl ModuleManager {
             config: app_config,
             toast: Toasts::default(),
             pending_error_messages: vec![],
-            device_linkers: HashMap::new(),
             device_managers: HashMap::new(),
             tts_managers: HashMap::new(),
-            selected_device_linker: None,
             selected_device_manager: None,
             selected_tts_manager: None,
         }
@@ -151,10 +144,6 @@ impl ModuleManager {
             let module = linux_module::LinuxModule::new().await;
             let module_name = module.get_screen_name();
             let linux_module = Arc::new(RwLock::new(module));
-
-            self.device_linkers
-                .insert(module_name.to_owned(), linux_module.clone());
-            self.selected_device_linker = Some(linux_module.clone());
 
             self.device_managers
                 .insert(module_name.to_owned(), linux_module.clone());
@@ -172,7 +161,7 @@ impl ModuleManager {
 
         self
     }
-    define_modules_fns! {device_manager, device_linker, tts_manager}
+    define_modules_fns! {device_manager, tts_manager}
 
     pub fn error(&mut self, text: String) {
         self.pending_error_messages.push(text);

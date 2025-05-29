@@ -1,9 +1,5 @@
 use crate::base_managers::tts_manager::TtsManager;
-use crate::base_managers::{
-    Module, device_linker::DeviceLinker,
-    device_manager::DeviceManager,
-};
-use bevy::render::camera::SortedCamera;
+use crate::base_managers::{Module, device_manager::DeviceManager};
 use busrt::QoS;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::{Rpc, RpcClient};
@@ -106,9 +102,11 @@ impl DeviceManager for LinuxModule {
                 as Box<dyn std::error::Error>)
         })
     }
-}
 
-impl DeviceLinker for LinuxModule {
+    fn is_capable_of_linking(&self) -> bool {
+        true
+    }
+
     fn link_device(
         &self,
         input_device: String,

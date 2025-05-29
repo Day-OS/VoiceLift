@@ -1,4 +1,3 @@
-pub(crate) mod device_linker;
 pub(crate) mod device_manager;
 pub(crate) mod module_manager;
 pub(crate) mod tts_manager;
@@ -12,7 +11,6 @@ use bevy::ecs::system::ResMut;
 use bevy::platform::collections::HashMap;
 use bevy_egui::egui;
 use bevy_tokio_tasks::TokioTasksRuntime;
-use device_linker::DeviceLinker;
 use device_manager::DeviceManager;
 use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
@@ -61,7 +59,7 @@ pub fn initialize_module_manager(
 ) {
     let runtime = runtime.runtime();
     let result = runtime.block_on(module_manager.initialize());
-    let linker = result.selected_device_linker.clone().unwrap();
+    let linker = result.selected_device_manager.clone().unwrap();
     let mut linker = runtime.block_on(linker.write());
     let linker_start_result = runtime.block_on(linker.start());
     if let Err(e) = linker_start_result {
