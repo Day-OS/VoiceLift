@@ -16,9 +16,9 @@ use crate::base_modules::module_manager::ModuleManager;
 
 use crate::ui::virtual_keyboard::Keyboard;
 
-use super::config_screen::ConfigScreen;
 use super::Screen;
 use super::ScreenEvent;
+use super::config_screen::ConfigScreen;
 
 #[derive(Default)]
 pub struct MainScreen {
@@ -55,6 +55,112 @@ impl MainScreen {
             );
         }
     }
+
+    fn show_keyboard(
+        &self,
+        tui: &mut egui_taffy::Tui,
+        keyboard: &mut Keyboard,
+    ) {
+        if self.keyboard_enabled {
+            tui.ui(|ui| keyboard.base.show(ui));
+        }
+    }
+
+    fn show_run_button(
+        &self,
+        tui: &mut egui_taffy::Tui,
+        button_width: f32,
+    ) {
+        tui.style(taffy::Style {
+            flex_direction: taffy::FlexDirection::Row,
+            padding: length(0.),
+            gap: length(0.),
+            flex_grow: 1.,
+            ..Default::default()
+        })
+        .add(|tui| {
+            tui.ui(|ui| {
+                ui.add_sized(
+                    [button_width, ui.available_height()],
+                    Button::new(
+                        egui_material_icons::icons::ICON_VOLUME_UP,
+                    )
+                    .corner_radius(0),
+                );
+            })
+        });
+    }
+
+    fn show_user_input(
+        &mut self,
+        tui: &mut egui_taffy::Tui,
+        font_size: f32,
+    ) {
+        tui.style(taffy::Style {
+            flex_direction: taffy::FlexDirection::Column,
+            align_self: Some(taffy::AlignItems::Stretch),
+            justify_self: Some(taffy::AlignItems::Stretch),
+            padding: length(0.),
+            gap: length(0.),
+            flex_grow: 6.,
+            margin: taffy::Rect {
+                left: auto(),
+                right: length(10.),
+                top: auto(),
+                bottom: auto(),
+            },
+            ..Default::default()
+        })
+        .add(|tui| {
+            tui.ui(|ui| {
+                let text_edit_id =
+                    ui.make_persistent_id("mai_text_edit");
+                ui.memory_mut(|mem| mem.request_focus(text_edit_id));
+
+                let text_edit =
+                    egui::TextEdit::multiline(&mut self.text)
+                        .id(text_edit_id)
+                        .desired_rows(1)
+                        .desired_width(f32::INFINITY)
+                        .lock_focus(true)
+                        .return_key(None);
+                let output: egui::text_edit::TextEditOutput =
+                    text_edit.show(ui);
+                self.show_suggestion_text(ui, output, font_size);
+            })
+        });
+    }
+
+    fn show_menu_buttons(
+        &mut self,
+        ui: &mut egui::Ui,
+        screen_event_w: &mut EventWriter<ScreenEvent>,
+    ) {
+        ui.menu_button(
+            egui_material_icons::icons::ICON_SETTINGS,
+            |ui| {
+                let keyboard = ui.button(format!(
+                    "{} Ativar teclado Virtual",
+                    egui_material_icons::icons::ICON_KEYBOARD
+                ));
+                if keyboard.clicked() {
+                    self.keyboard_enabled = !self.keyboard_enabled;
+                }
+                let preferences = ui.button(format!(
+                    "{} Preferências...",
+                    egui_material_icons::icons::ICON_SETTINGS
+                ));
+                if preferences.clicked() {
+                    screen_event_w.write(
+                        ScreenEvent::ScreenChangeEvent {
+                            screen_name: ConfigScreen::get_name()
+                                .to_owned(),
+                        },
+                    );
+                }
+            },
+        );
+    }
 }
 
 impl Screen for MainScreen {
@@ -84,17 +190,8 @@ impl Screen for MainScreen {
         }
         let mut work_area = work_area;
         work_area.y = 0.;
-        
-        ui.menu_button(egui_material_icons::icons::ICON_SETTINGS, |ui|{
-            let keyboard = ui.button(format!("{} Ativar teclado Virtual", egui_material_icons::icons::ICON_KEYBOARD));
-            if keyboard.clicked(){
-                self.keyboard_enabled = !self.keyboard_enabled;
-            }
-            let preferences = ui.button(format!("{} Preferências...", egui_material_icons::icons::ICON_SETTINGS));
-            if preferences.clicked(){
-                screen_event_w.write(ScreenEvent::ScreenChangeEvent { screen_name: ConfigScreen::get_name().to_owned() });
-            }
-        });
+
+        self.show_menu_buttons(ui, screen_event_w);
 
         tui(ui, ui.id().with("demo"))
             .reserve_space(work_area)
@@ -112,8 +209,6 @@ impl Screen for MainScreen {
                 ..Default::default()
             })
             .show(|tui| {
-                /* #region Text and Buttons */
-
                 tui.style(taffy::Style {
                     flex_direction: taffy::FlexDirection::Row,
                     align_self: Some(taffy::AlignItems::Stretch),
@@ -125,67 +220,19 @@ impl Screen for MainScreen {
                         width: percent(1.),
                         height: percent(1.),
                     },
-                    margin: taffy::Rect { left: auto(), right: auto(), top: auto(), bottom: length(10.) },
+                    margin: taffy::Rect {
+                        left: auto(),
+                        right: auto(),
+                        top: auto(),
+                        bottom: length(10.),
+                    },
                     ..Default::default()
                 })
                 .add(|tui| {
-                    /* #region Text*/
-                    tui.style(taffy::Style {
-                        flex_direction: taffy::FlexDirection::Column,
-                        align_self: Some(taffy::AlignItems::Stretch),
-                        justify_self: Some(
-                            taffy::AlignItems::Stretch,
-                        ),
-                        padding: length(0.),
-                        gap: length(0.),
-                        flex_grow: 6.,
-                        margin: taffy::Rect { left: auto(), right: length(10.), top: auto(), bottom: auto() },
-                        ..Default::default()
-
-                    })
-                    .add(|tui| {
-                        tui.ui(|ui| {
-                            let text_edit_id = ui.make_persistent_id("mai_text_edit");
-                            ui.memory_mut(|mem| mem.request_focus(text_edit_id));
-
-                            let text_edit =
-                                egui::TextEdit::multiline(&mut self.text)
-                                    .id(text_edit_id)
-                                    .desired_rows(1)
-                                    .desired_width(f32::INFINITY).lock_focus(true).return_key(None);
-                            let output: egui::text_edit::TextEditOutput =
-                                text_edit.show(ui);
-                            self.show_suggestion_text(
-                                ui, output, font_size,
-                            );
-                        })
-                    });
-                    /* #endregion */
-                    /* #region Button RUN*/ 
-                    tui.style(taffy::Style {
-                        flex_direction: taffy::FlexDirection::Row,
-                        padding: length(0.),
-                        gap: length(0.),
-                        flex_grow: 1.,
-                        ..Default::default()
-                    })
-                    .add(|tui| {
-                        tui.ui(|ui| {
-                            ui.add_sized([button_width, ui.available_height()],
-                                Button::new(egui_material_icons::icons::ICON_VOLUME_UP).corner_radius(0)
-                            );
-                        })
-                    });
-                    /* #endregion */
+                    self.show_user_input(tui, font_size);
+                    self.show_run_button(tui, button_width);
                 });
-                
-
-                /* #endregion */
-                if self.keyboard_enabled  {
-                    tui.ui(|ui| {
-                        keyboard.base.show(ui)
-                    });
-                }
+                self.show_keyboard(tui, keyboard);
             });
     }
 }

@@ -139,7 +139,7 @@ impl DeviceModule for LinuxModule {
                 // Throws error if the result is not successful
                 response
                     .result
-                    .map_err(|e| LinuxModuleError::FailedToLink(e))?;
+                    .map_err(LinuxModuleError::FailedToLink)?;
                 Ok(())
             } else {
                 Err(Box::new(
