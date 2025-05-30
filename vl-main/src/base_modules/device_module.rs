@@ -1,22 +1,21 @@
 use futures::future::BoxFuture;
-use std::fmt::Debug;
 use vl_global::AudioDevices;
 
-use super::Module;
+use super::IModule;
 
 fn is_capable_of_linking_error(capacity: bool) -> String {
     if capacity {
         return "This method was not implemented, even though the module is capable of linking devices. Please implement this module properly.".to_string();
     }
-    return "This module is not capable of linking devices. Please check your code.".to_string();
+    "This module is not capable of linking devices. Please check your code.".to_string()
 }
-
-pub trait DeviceModule: Module {
+pub const MODULE_TYPE: &str = "Device Module";
+pub trait DeviceModule: IModule {
     fn get_devices(
         &self,
     ) -> BoxFuture<Result<AudioDevices, Box<dyn std::error::Error>>>;
     fn get_module_type(&self) -> &'static str {
-        "Device Module"
+        MODULE_TYPE
     }
     fn is_capable_of_linking(&self) -> bool {
         false

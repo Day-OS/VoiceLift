@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
-use crate::base_modules::initialize_module_manager;
 use crate::base_modules::module_manager::ModuleManager;
+use crate::base_modules::{
+    initialize_module_manager, module_manager::ModuleManagerEvent,
+};
 
 use async_lock::RwLock;
 use bevy::{
@@ -40,6 +42,7 @@ pub fn run() {
     app.insert_resource(screen_manager);
     app.insert_resource(ModuleManager::new());
     app.add_event::<ScreenEvent>();
+    app.add_event::<ModuleManagerEvent>();
     app.add_systems(Startup, initialize_module_manager);
     app.add_plugins(TokioTasksPlugin::default());
     app.add_plugins(

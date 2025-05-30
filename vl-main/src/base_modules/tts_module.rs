@@ -1,11 +1,11 @@
 use futures::future::BoxFuture;
-use std::fmt::Debug;
-use vl_global::AudioDevices;
 
-use super::Module;
+use super::IModule;
+
+pub const MODULE_TYPE: &str = "TTS Module";
 
 /// Responsible for managing TTS
-pub trait TtsModule: Module {
+pub trait TtsModule: IModule {
     fn speak(
         &self,
         text: String,
@@ -16,6 +16,6 @@ pub trait TtsModule: Module {
     ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
 
     fn get_module_type(&self) -> &'static str {
-        "TTS Module"
+        MODULE_TYPE
     }
 }

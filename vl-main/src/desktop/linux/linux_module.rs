@@ -1,5 +1,5 @@
 use crate::base_modules::tts_module::TtsModule;
-use crate::base_modules::{Module, device_module::DeviceModule};
+use crate::base_modules::{IModule, device_module::DeviceModule};
 use busrt::QoS;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::{Rpc, RpcClient};
@@ -49,7 +49,7 @@ impl LinuxModule {
         Self { _client: None }
     }
 }
-impl Module for LinuxModule {
+impl IModule for LinuxModule {
     fn is_started(&self) -> bool {
         self._client.is_some()
     }

@@ -2,6 +2,7 @@ use config::Config;
 use serde::Deserialize;
 use serde::Serialize;
 
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -124,9 +125,7 @@ impl ConfigManager {
     Clone,
 )]
 pub struct VlConfig {
-    pub selected_device_linker: Option<String>,
-    pub selected_device_manager: Option<String>,
-    pub selected_tts_manager: Option<String>,
+    pub selected_modules: HashMap<String, String>,
     pub linux: Option<LinuxConfig>,
 }
 
@@ -134,9 +133,7 @@ impl Default for VlConfig {
     fn default() -> Self {
         VlConfig {
             linux: Some(LinuxConfig::default()),
-            selected_device_linker: None,
-            selected_device_manager: None,
-            selected_tts_manager: None,
+            selected_modules: HashMap::new(),
         }
     }
 }

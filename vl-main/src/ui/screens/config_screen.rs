@@ -1,15 +1,10 @@
 use core::f32;
-use std::default;
-use std::time::Duration;
 
 use bevy::app::Main;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
-use bevy_egui::egui::epaint::tessellator::path;
 use bevy_egui::egui::Button;
-use bevy_egui::egui::Color32;
-use bevy_egui::egui::FontId;
 use bevy_egui::egui::Vec2;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;

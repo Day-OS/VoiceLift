@@ -1,19 +1,27 @@
 use super::device_module::DeviceModule;
 use super::tts_module::TtsModule;
+use crate::base_modules::IModule;
 use crate::base_modules::Module;
 #[cfg(target_os = "linux")]
 use crate::desktop::linux::linux_module;
 use async_lock::RwLock;
+use bevy::ecs::event::Event;
 use bevy::ecs::resource::Resource;
 use bevy::platform::collections::HashMap;
 use bevy_egui::egui;
+use core::panic;
 use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
 use futures::executor;
-use paste::paste;
 use std::sync::Arc;
+use vl_global::vl_config::ConfigError;
 use vl_global::vl_config::ConfigManager;
 use vl_global::vl_config::VlConfig;
+
+#[derive(Event)]
+pub enum ModuleManagerEvent {
+    LoadModule(String),
+}
 
 #[derive(Resource)]
 pub struct ModuleManager {
@@ -21,11 +29,10 @@ pub struct ModuleManager {
     pub file_dialog: Arc<RwLock<FileDialog>>,
     pub(super) toast: Toasts,
     pending_error_messages: Vec<String>,
-    device_managers: HashMap<String, Arc<RwLock<dyn DeviceModule>>>,
-    tts_managers: HashMap<String, Arc<RwLock<dyn TtsModule>>>,
-    pub(super) selected_device_manager:
+    modules: HashMap<String, Module>,
+    pub(super) selected_device_module:
         Option<Arc<RwLock<dyn DeviceModule>>>,
-    pub(super) selected_tts_manager:
+    pub(super) selected_tts_module:
         Option<Arc<RwLock<dyn TtsModule>>>,
 }
 
@@ -34,92 +41,6 @@ impl Default for ModuleManager {
         Self::new()
     }
 }
-
-#[macro_export]
-macro_rules! define_modules_fns {
-    ( $( $field:ident ),* ) => {
-        paste! {
-            $(
-                pub fn [<is_ $field _started>](&self) -> bool {
-                    if let Some(module) = &self.[<selected_ $field>] {
-                        let module = executor::block_on(module.read());
-                        return module.is_started();
-                    }
-                    false
-                }
-
-                pub fn [<does_ $field _exist>](&self, name: &String) -> bool {
-                    let module = self.[<$field s>].get(name);
-                    module.is_some()
-                }
-
-                pub fn [<get_ $field s>](&self,) -> Vec<String> {
-                    self.[<$field s>].keys().map(|str| str.clone()).collect()
-                }
-
-                fn [<update_config_ $field>](&mut self, config: &mut VlConfig){
-                    if let Some(module) = &mut config.[<selected_ $field>] {
-                        let module: &String = module;
-                        let does_this_module_exist: bool = self.[<does_ $field _exist>](module);
-                        if does_this_module_exist{
-                            self.[<selected_ $field>] = self.[<$field s>].get(module).cloned();
-                            return;
-                        }
-                    }
-                    if let Some((_, module)) = self.[<$field s>].iter().next() {
-                        let module_lock = executor::block_on(module.read());
-                        config.[<selected_ $field>] = Some(module_lock.get_screen_name().to_owned());
-
-                    }
-                }
-
-                fn [<show_config_ $field>](&mut self, ui: &mut egui::Ui, config: &mut VlConfig){
-                    if let Some(module) = &self.[<selected_ $field>]{
-                        let alternatives = self.[<get_ $field s>]();
-                        let module_type_name = executor::block_on(module.read()).get_module_type();
-                        let mut selected =  config.[<selected_ $field>].clone();
-                        if let Some(module_name) = &mut selected{
-                            ui.label(format!("{module_type_name} Selecionado: {module_name}"));
-                            for linker_option in alternatives{
-                                ui.radio_value(module_name, linker_option.clone(), linker_option);
-                            }
-                        }
-                        // Update the config with the selected linker
-                        config.selected_device_linker = selected;
-                    }
-
-
-                }
-
-            )*
-            pub fn is_started(&self) -> bool {
-                let checks: Vec<bool> = vec![
-                    $(
-                        self.[<is_ $field _started>](),
-                    )*
-                ];
-
-                let all_true = checks.iter().all(|&b| b);
-                all_true
-            }
-
-            pub fn update_config(&mut self, config: &mut VlConfig){
-                $(
-                    self.[<update_config_ $field>](config);
-                )*
-
-            }
-
-            pub fn show_configs(&mut self, ui: &mut egui::Ui, config: &mut VlConfig){
-                $(
-                    self.[<show_config_ $field>](ui, config);
-                )*
-
-            }
-        }
-    };
-}
-
 impl ModuleManager {
     pub fn new() -> Self {
         let app_config = Arc::new(RwLock::new(
@@ -132,36 +53,60 @@ impl ModuleManager {
             config: app_config,
             toast: Toasts::default(),
             pending_error_messages: vec![],
-            device_managers: HashMap::new(),
-            tts_managers: HashMap::new(),
-            selected_device_manager: None,
-            selected_tts_manager: None,
+            modules: HashMap::new(),
+            selected_device_module: None,
+            selected_tts_module: None,
         }
     }
     pub async fn initialize(&mut self) -> &mut Self {
         #[cfg(target_os = "linux")]
         {
             let module = linux_module::LinuxModule::new().await;
-            let module_name = module.get_screen_name();
             let linux_module = Arc::new(RwLock::new(module));
 
-            self.device_managers
-                .insert(module_name.to_owned(), linux_module.clone());
-            self.selected_device_manager = Some(linux_module.clone());
-
-            self.tts_managers
-                .insert(module_name.to_owned(), linux_module.clone());
-            self.selected_tts_manager = Some(linux_module.clone())
+            let tts = Module::TtsModule(linux_module.clone());
+            let device = Module::DeviceModule(linux_module.clone());
+            self.modules
+                .insert(tts.get_module_type().to_owned(), tts);
+            self.modules
+                .insert(device.get_module_type().to_owned(), device);
+            self.selected_device_module = Some(linux_module.clone());
+            self.selected_tts_module = Some(linux_module.clone())
         }
 
         // update config!
-        let config_clone = self.config.clone();
-        let mut config = executor::block_on(config_clone.write());
-        config.modify_and_save(|config| self.update_config(config));
 
+        self.update_config().unwrap();
         self
     }
-    define_modules_fns! {device_manager, tts_manager}
+    // #region Config
+    pub fn update_config(&mut self) -> Result<(), ConfigError> {
+        let config_clone = self.config.clone();
+        let mut config = executor::block_on(config_clone.write());
+        config
+            .modify_and_save(|config| self._update_config(config))?;
+        Ok(())
+    }
+
+    fn _update_config(&mut self, config: &mut VlConfig) {
+        if let Some(module) = &self.selected_device_module {
+            let module = executor::block_on(module.read());
+            let type_name = module.get_module_type();
+            let name = module.get_screen_name();
+            config
+                .selected_modules
+                .insert(type_name.to_owned(), name.to_owned());
+        }
+        if let Some(module) = &self.selected_tts_module {
+            let module = executor::block_on(module.read());
+            let type_name = module.get_module_type();
+            let name = module.get_screen_name();
+            config
+                .selected_modules
+                .insert(type_name.to_owned(), name.to_owned());
+        }
+    }
+    // #endregion
 
     pub fn error(&mut self, text: String) {
         self.pending_error_messages.push(text);
@@ -173,5 +118,78 @@ impl ModuleManager {
         }
         self.pending_error_messages.clear();
         self.toast.show(ctx);
+    }
+
+    pub fn select_module(&mut self, module: Module) {
+        match module {
+            Module::TtsModule(rw_lock) => {
+                self.selected_tts_module = Some(rw_lock.clone());
+            }
+            Module::DeviceModule(rw_lock) => {
+                self.selected_device_module = Some(rw_lock.clone());
+            }
+        };
+        self.update_config().unwrap();
+    }
+
+    pub fn is_started(&self) -> bool {
+        let mut checks = vec![];
+        if let Some(module) = &self.selected_device_module {
+            let device = executor::block_on(module.read());
+            checks.push(device.is_started());
+        }
+        if let Some(module) = &self.selected_tts_module {
+            let device = executor::block_on(module.read());
+            checks.push(device.is_started());
+        }
+        if checks.is_empty() {
+            return false;
+        }
+
+        checks.iter().all(|&b| b)
+    }
+
+    pub fn show_configs(
+        &mut self,
+        ui: &mut egui::Ui,
+        config: &mut VlConfig,
+    ) {
+        let mut modules: HashMap<String, Vec<String>> =
+            HashMap::new();
+
+        for (key, module) in &self.modules {
+            let mut list = modules.get_mut(key);
+            if list.is_none() {
+                modules.insert(key.clone(), vec![]);
+                list = modules.get_mut(key);
+            }
+            let list = list.unwrap();
+            list.push(module.get_screen_name().to_string());
+        }
+        println!("{modules:?}");
+        for (module_type, alternatives) in modules {
+            let selected_module =
+                config.selected_modules.get(&module_type);
+            if selected_module.is_none() {
+                continue;
+            }
+            let mut selected_module = selected_module.unwrap();
+
+            ui.label(format!(
+                "{module_type} Selecionado: {selected_module}"
+            ));
+            for linker_option in &alternatives {
+                let text = linker_option.clone();
+                ui.radio_value(
+                    &mut selected_module,
+                    linker_option,
+                    text,
+                );
+            }
+            // Update the config with the selected linker
+            config
+                .selected_modules
+                .insert(module_type, selected_module.to_string());
+        }
     }
 }
