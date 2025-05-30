@@ -6,6 +6,7 @@ use crate::base_modules::Module;
 use crate::desktop::linux::linux_module;
 use async_lock::RwLock;
 use bevy::ecs::event::Event;
+use bevy::ecs::event::EventWriter;
 use bevy::ecs::resource::Resource;
 use bevy::platform::collections::HashMap;
 use bevy_egui::egui;
@@ -153,6 +154,7 @@ impl ModuleManager {
         &mut self,
         ui: &mut egui::Ui,
         config: &mut VlConfig,
+        module_event_w: &mut EventWriter<ModuleManagerEvent>,
     ) {
         let mut modules: HashMap<String, Vec<String>> =
             HashMap::new();
@@ -166,7 +168,6 @@ impl ModuleManager {
             let list = list.unwrap();
             list.push(module.get_screen_name().to_string());
         }
-        println!("{modules:?}");
         for (module_type, alternatives) in modules {
             let selected_module =
                 config.selected_modules.get(&module_type);

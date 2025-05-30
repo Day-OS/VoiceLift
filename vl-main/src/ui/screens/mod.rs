@@ -16,9 +16,21 @@ use futures::executor;
 
 use bevy_egui::egui::Vec2;
 
-use crate::base_modules::module_manager::ModuleManager;
+use crate::base_modules::module_manager::{
+    ModuleManager, ModuleManagerEvent,
+};
 
 use super::virtual_keyboard::Keyboard;
+
+pub struct ScreenParameters<'w> {
+    module_manager: ResMut<'w, ModuleManager>,
+    screen_event_w: EventWriter<'w, ScreenEvent>,
+    module_event_w: EventWriter<'w, ModuleManagerEvent>,
+    ui: &'w mut egui::Ui,
+    ctx: &'w mut egui::Context,
+    work_area: Vec2,
+    keyboard: &'w mut Keyboard,
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum ScreenError {
@@ -41,25 +53,7 @@ pub trait Screen: Sync + Send {
     fn is_collapsable(&self) -> bool {
         true
     }
-    fn draw(
-        &mut self,
-        module_manager: &mut ResMut<'_, ModuleManager>,
-        screen_event_w: &mut EventWriter<ScreenEvent>,
-        ui: &mut egui::Ui,
-        ctx: &mut egui::Context,
-        work_area: Vec2,
-    ) {
-    }
-    fn draw_with_keyboard(
-        &mut self,
-        module_manager: &mut ResMut<'_, ModuleManager>,
-        screen_event_w: &mut EventWriter<ScreenEvent>,
-        ui: &mut egui::Ui,
-        ctx: &mut egui::Context,
-        keyboard: &mut Keyboard,
-        work_area: Vec2,
-    ) {
-    }
+    fn draw(&mut self, params: ScreenParameters);
     fn get_screen_name(&self) -> &'static str {
         type_name::<Self>()
     }
@@ -132,32 +126,25 @@ impl ScreenManager {
     /// Draw the current selected screen into the EGUI Window
     pub fn draw(
         &mut self,
-        module_manager: &mut ResMut<'_, ModuleManager>,
-        screen_event_w: &mut EventWriter<ScreenEvent>,
+        module_manager: ResMut<'_, ModuleManager>,
+        screen_event_w: EventWriter<ScreenEvent>,
+        module_event_w: EventWriter<ModuleManagerEvent>,
         ui: &mut egui::Ui,
         ctx: &mut egui::Context,
         work_area: Vec2,
     ) {
         let mut selected_screen =
             executor::block_on(self.selected_screen.write());
-        if selected_screen.uses_keyboard() {
-            selected_screen.draw_with_keyboard(
-                module_manager,
-                screen_event_w,
-                ui,
-                ctx,
-                &mut self.keyboard,
-                work_area,
-            );
-        } else {
-            selected_screen.draw(
-                module_manager,
-                screen_event_w,
-                ui,
-                ctx,
-                work_area,
-            );
-        }
+        let params = ScreenParameters {
+            ctx,
+            module_event_w,
+            module_manager,
+            screen_event_w,
+            ui,
+            work_area,
+            keyboard: &mut self.keyboard,
+        };
+        selected_screen.draw(params);
     }
 
     pub fn get_size(&self) -> Vec2 {

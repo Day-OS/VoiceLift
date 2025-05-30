@@ -11,8 +11,6 @@ fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
         rmp_serde::from_slice(event.payload()).map_err(|err| {
             format!("Failed to deserialize request: {}", err)
         })?;
-
-    println!("travou no pipwiremanager?");
     // Get PipeWire Manager Instance
     let manager = PIPEWIRE_MANAGER
         .get()
@@ -21,7 +19,6 @@ fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
         .map_err(|e| {
             format!("Failed to lock PipeWireManager: {}", e)
         })?;
-    println!("não ! :)");
 
     let objects = manager.get_objects();
 

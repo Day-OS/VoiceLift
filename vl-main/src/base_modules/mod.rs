@@ -6,6 +6,7 @@ use std::any::type_name;
 use std::sync::Arc;
 
 use async_lock::RwLock;
+use bevy::ecs::event::EventReader;
 use bevy::ecs::system::ResMut;
 use bevy_tokio_tasks::TokioTasksRuntime;
 use device_module::DeviceModule;
@@ -14,7 +15,9 @@ use futures::future::BoxFuture;
 use std::fmt::Debug;
 use tts_module::TtsModule;
 
-use crate::base_modules::module_manager::ModuleManager;
+use crate::base_modules::module_manager::{
+    ModuleManager, ModuleManagerEvent,
+};
 
 #[derive(Debug, Clone)]
 pub enum Module {
@@ -132,4 +135,12 @@ pub fn initialize_module_manager(
         let error = "Linker did not start".to_owned();
         module_manager.error(error);
     }
+}
+
+pub fn module_manager_event_handler(
+    mut module_manager: ResMut<ModuleManager>,
+    mut event_r: EventReader<ModuleManagerEvent>,
+    runtime: ResMut<TokioTasksRuntime>,
+) {
+    let runtime = runtime.runtime();
 }

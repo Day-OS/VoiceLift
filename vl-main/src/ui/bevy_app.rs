@@ -3,6 +3,7 @@ use std::sync::Arc;
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
 use crate::base_modules::module_manager::ModuleManager;
+use crate::base_modules::module_manager_event_handler;
 use crate::base_modules::{
     initialize_module_manager, module_manager::ModuleManagerEvent,
 };
@@ -44,6 +45,7 @@ pub fn run() {
     app.add_event::<ScreenEvent>();
     app.add_event::<ModuleManagerEvent>();
     app.add_systems(Startup, initialize_module_manager);
+    app.add_systems(Update, module_manager_event_handler);
     app.add_plugins(TokioTasksPlugin::default());
     app.add_plugins(
         DefaultPlugins
@@ -99,7 +101,8 @@ fn egui_screen(
     mut module_manager: ResMut<ModuleManager>,
     mut screen: ResMut<ScreenManager>,
     mut window: Single<&mut Window>,
-    mut scree_event_w: EventWriter<ScreenEvent>,
+    mut screen_event_w: EventWriter<ScreenEvent>,
+    mut module_event_w: EventWriter<ModuleManagerEvent>,
 ) {
     // window.mode =
     // WindowMode::BorderlessFullscreen(MonitorSelection::Current);
@@ -144,8 +147,9 @@ fn egui_screen(
         .title_bar(false)
         .show(&ctx.clone(), |ui| {
             screen.draw(
-                &mut module_manager,
-                &mut scree_event_w,
+                module_manager,
+                screen_event_w,
+                module_event_w,
                 ui,
                 ctx,
                 screen_size,

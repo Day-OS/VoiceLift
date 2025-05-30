@@ -1,7 +1,6 @@
 use core::f32;
 
 use bevy::ecs::event::EventWriter;
-use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
 use bevy_egui::egui::Button;
 use bevy_egui::egui::Color32;
@@ -12,8 +11,7 @@ use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 
-use crate::base_modules::module_manager::ModuleManager;
-
+use crate::ui::screens::ScreenParameters;
 use crate::ui::virtual_keyboard::Keyboard;
 
 use super::Screen;
@@ -170,15 +168,13 @@ impl Screen for MainScreen {
     fn uses_keyboard(&self) -> bool {
         true
     }
-    fn draw_with_keyboard(
-        &mut self,
-        module_manager: &mut ResMut<'_, ModuleManager>,
-        screen_event_w: &mut EventWriter<ScreenEvent>,
-        ui: &mut egui::Ui,
-        _ctx: &mut egui::Context,
-        keyboard: &mut Keyboard,
-        work_area: Vec2,
-    ) {
+    fn draw(&mut self, params: ScreenParameters) {
+        let mut module_manager = params.module_manager;
+        let mut screen_event_w = params.screen_event_w;
+        let ui = params.ui;
+        let mut _ctx = params.ctx;
+        let work_area = params.work_area;
+        let keyboard = params.keyboard;
         module_manager._throw_error_message(_ctx);
         let style = ui.style_mut();
         let font_size = 18.0;
@@ -191,7 +187,7 @@ impl Screen for MainScreen {
         let mut work_area = work_area;
         work_area.y = 0.;
 
-        self.show_menu_buttons(ui, screen_event_w);
+        self.show_menu_buttons(ui, &mut screen_event_w);
 
         tui(ui, ui.id().with("demo"))
             .reserve_space(work_area)

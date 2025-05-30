@@ -13,6 +13,8 @@ use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
 
 use crate::base_modules::module_manager::ModuleManager;
+use crate::base_modules::module_manager::ModuleManagerEvent;
+use crate::ui::screens::ScreenParameters;
 use crate::ui::virtual_keyboard::Keyboard;
 
 use super::Screen;
@@ -34,12 +36,17 @@ impl Screen for ConfigScreen {
     }
     fn draw(
         &mut self,
-        module_manager: &mut ResMut<'_, ModuleManager>,
-        screen_event_w: &mut EventWriter<ScreenEvent>,
-        ui: &mut egui::Ui,
-        _ctx: &mut egui::Context,
-        work_area: Vec2,
+        params: ScreenParameters,
     ) {
+        let mut module_manager = params.module_manager;
+        let mut screen_event_w = params.screen_event_w;
+        let mut module_event_w = params.module_event_w;
+        let ui = params.ui;
+        let mut _ctx = params.ctx;
+        let work_area = params.work_area;
+        let keyboard = params.keyboard;
+
+
         tui(ui, ui.id().with("demo"))
             .reserve_space(work_area)
             .style(taffy::Style {
@@ -76,7 +83,7 @@ impl Screen for ConfigScreen {
                         |config: &mut vl_global::vl_config::VlConfig| {
                             ui.heading("Configurações");
 
-                            module_manager.show_configs(ui, config);
+                            module_manager.show_configs(ui, config, &mut module_event_w);
 
                             if let Some(linux) = &mut config.linux {
                                 ui.heading("Configurações do Linux Module");
