@@ -1,4 +1,5 @@
 use core::f32;
+use std::path::Path;
 
 use bevy::app::Main;
 use bevy::ecs::event::EventWriter;
@@ -90,7 +91,13 @@ impl Screen for ConfigScreen {
                                 ui.heading("Configurações do Linux Module");
                                 ui.label(format!("Piper TTS Model Path: {}", linux.piper_tts_model));
                                 if ui.button("Pick file").clicked() {
-                                    // Open the file dialog to pick a file.
+                                    // For some reason it is private?
+                                    // if !linux.piper_tts_model.is_empty(){
+                                    //     let path = Path::new(&linux.piper_tts_model);
+                                    //     if path.exists(){
+                                    //         file_dialog.initial_directory(path.to_path_buf());
+                                    //     }
+                                    // }
                                     file_dialog.pick_file();
                                 }
                                 if let Some(path) = file_dialog.take_picked() {
