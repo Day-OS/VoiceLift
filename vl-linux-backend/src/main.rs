@@ -17,6 +17,9 @@ use vl_global::vl_config::ConfigManager;
 mod event_handler;
 mod event_parameters;
 mod events;
+use thiserror::Error;
+use vl_global::vl_config::ConfigError;
+
 mod piper;
 use easy_pw::manager::{self, PipeWireManager};
 
@@ -26,9 +29,21 @@ static PIPEWIRE_MANAGER: OnceLock<RwLock<PipeWireManager>> =
 static PIPERTTS_MANAGER: OnceLock<Arc<RwLock<PiperTTSManager>>> =
     OnceLock::new();
 
+#[derive(Error, Debug)]
+enum LinuxBackendError {
+    #[error(
+        "The Linux config section was not found in the config file."
+    )]
+    ConfigSectionNotFound,
+    #[error("Config file error.")]
+    ConfigError(#[from] ConfigError),
+    #[error("Unknown Error")]
+    UnknownError(#[from] anyhow::Error),
+}
+
 #[cfg(target_os = "linux")]
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), LinuxBackendError> {
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Debug,
         ConfigBuilder::new()
@@ -40,15 +55,18 @@ async fn main() {
     .unwrap();
 
     let mut piper_model_path = None;
-    let mut config = ConfigManager::new().unwrap();
+    let mut config = ConfigManager::new()?;
     config.modify_and_save(|config| {
         if config.linux.is_none() {
-            panic!("The Linux config section was not found in the config file.")
+            return Err(
+                LinuxBackendError::ConfigSectionNotFound.into()
+            );
         }
 
         let linux = config.linux.as_ref().unwrap();
         piper_model_path = Some(linux.piper_tts_model.clone());
-    }).unwrap();
+        Ok(())
+    })?;
 
     let path = piper_model_path.unwrap();
     let piper_model_path = Path::new(&path);
@@ -107,4 +125,6 @@ async fn main() {
     {
         sleep(Duration::from_secs(1)).await;
     }
+
+    Ok(())
 }

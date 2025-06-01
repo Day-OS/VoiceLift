@@ -97,9 +97,9 @@ impl Screen for ConfigScreen {
 
                                 //linux.piper_tts_model;
                             }
+                            Ok(())
                         },
-                    )
-                    .unwrap();
+                    ).unwrap();
                 file_dialog.update(_ctx);
             });
     });

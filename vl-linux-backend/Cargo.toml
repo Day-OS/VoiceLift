@@ -8,6 +8,7 @@ default = ["piper-rs", "pipewire", "rodio", "easy-pw", "busrt"]
 
 
 [dependencies]
+anyhow = "1.0.98"
 log = "0.4.27"
 [target.'cfg(target_os = "linux")'.dependencies]
 piper-rs = { version = "0.1.9", optional = true }

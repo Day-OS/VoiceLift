@@ -26,6 +26,8 @@ pub enum ConfigError {
     IoError(#[from] std::io::Error),
     #[error("ConfigError")]
     ConfigError(#[from] config::ConfigError),
+    #[error("Unknown Error")]
+    UnknownError(#[from] anyhow::Error),
 }
 
 pub struct ConfigManager {
@@ -67,21 +69,21 @@ impl ConfigManager {
             .unwrap()
     }
 
-    pub fn save(&mut self) -> Result<(), ConfigError> {
-        self.modify_and_save(|_| {})
+    pub fn save(&mut self) -> anyhow::Result<()> {
+        self.modify_and_save(|_| Ok(()))
     }
 
     pub fn modify_and_save<F>(
         &mut self,
         callback: F,
-    ) -> Result<(), ConfigError>
+    ) -> anyhow::Result<()>
     where
-        F: for<'a> FnOnce(&'a mut VlConfig),
+        F: for<'a> FnOnce(&'a mut VlConfig) -> anyhow::Result<()>,
     {
         let mut config: VlConfig =
             self.settings.clone().try_deserialize()?;
 
-        callback(&mut config); // Modify the configuration
+        callback(&mut config)?; // Modify the configuration
 
         Self::_save_vl_config(&self.config_path, &config)?;
 
