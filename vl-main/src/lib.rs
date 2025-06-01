@@ -1,4 +1,5 @@
 // Not being used ATM
+#![allow(internal_features)]
 #![feature(core_intrinsics)]
 
 use bevy::prelude::*;

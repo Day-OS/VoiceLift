@@ -214,7 +214,7 @@ impl Screen for MainScreen {
         work_area.y = 0.;
 
         self.show_menu_buttons(ui, &mut params.screen_event_w);
-        let mut keyboard = params.keyboard.clone();
+        let keyboard = params.keyboard.clone();
 
         tui(ui, ui.id().with("demo"))
             .reserve_space(work_area)

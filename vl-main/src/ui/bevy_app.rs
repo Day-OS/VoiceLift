@@ -99,11 +99,11 @@ pub fn run() {
 
 fn egui_screen(
     mut contexts: EguiContexts,
-    mut module_manager: ResMut<ModuleManager>,
+    module_manager: ResMut<ModuleManager>,
     mut screen: ResMut<ScreenManager>,
     mut window: Single<&mut Window>,
-    mut screen_event_w: EventWriter<ScreenEvent>,
-    mut module_event_w: EventWriter<ModuleManagerEvent>,
+    screen_event_w: EventWriter<ScreenEvent>,
+    module_event_w: EventWriter<ModuleManagerEvent>,
     runtime: ResMut<TokioTasksRuntime>,
 ) {
     // window.mode =
