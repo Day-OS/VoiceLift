@@ -45,6 +45,7 @@ impl Screen for ConfigScreen {
         let mut _ctx = params.ctx;
         let work_area = params.work_area;
         let keyboard = params.keyboard;
+        let mut tokio = params.runtime;
 
 
         tui(ui, ui.id().with("demo"))
@@ -83,7 +84,7 @@ impl Screen for ConfigScreen {
                         |config: &mut vl_global::vl_config::VlConfig| {
                             ui.heading("Configurações");
 
-                            module_manager.show_configs(ui, config, &mut module_event_w);
+                            module_manager.show_configs(ui, config, &mut module_event_w, &mut tokio);
 
                             if let Some(linux) = &mut config.linux {
                                 ui.heading("Configurações do Linux Module");

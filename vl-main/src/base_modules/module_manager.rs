@@ -8,12 +8,14 @@ use async_lock::RwLock;
 use bevy::ecs::event::Event;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::resource::Resource;
+use bevy::ecs::system::ResMut;
 use bevy::platform::collections::HashMap;
 use bevy_egui::egui;
 use core::panic;
 use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
 use futures::executor;
+use std::fmt::format;
 use std::sync::Arc;
 use vl_global::vl_config::ConfigError;
 use vl_global::vl_config::ConfigManager;
@@ -31,9 +33,9 @@ pub struct ModuleManager {
     pub(super) toast: Toasts,
     pending_error_messages: Vec<String>,
     modules: HashMap<String, Module>,
-    pub(super) selected_device_module:
+    pub(crate) selected_device_module:
         Option<Arc<RwLock<dyn DeviceModule>>>,
-    pub(super) selected_tts_module:
+    pub(crate) selected_tts_module:
         Option<Arc<RwLock<dyn TtsModule>>>,
 }
 
@@ -155,7 +157,10 @@ impl ModuleManager {
         ui: &mut egui::Ui,
         config: &mut VlConfig,
         module_event_w: &mut EventWriter<ModuleManagerEvent>,
+        tokio: &mut ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
     ) {
+        let runtime = tokio.runtime();
+        // Organize modules in a hashmap.
         let mut modules: HashMap<String, Vec<String>> =
             HashMap::new();
 
@@ -168,6 +173,8 @@ impl ModuleManager {
             let list = list.unwrap();
             list.push(module.get_screen_name().to_string());
         }
+
+        // Draw the options
         for (module_type, alternatives) in modules {
             let selected_module =
                 config.selected_modules.get(&module_type);
@@ -192,5 +199,31 @@ impl ModuleManager {
                 .selected_modules
                 .insert(module_type, selected_module.to_string());
         }
+
+        // Add start modules buttons
+        if let Some(module) = self.selected_tts_module.clone() {
+            let mut module = executor::block_on(module.write());
+            let module_type = module.get_module_type();
+            if ui.button(format!("Iniciar {module_type}")).clicked() {
+                if let Err(e) = runtime.block_on(module.start()) {
+                    self.error(format!(
+                        "Failed to start {module_type}!",
+                    ));
+                    log::error!("{e}");
+                }
+            }
+        };
+        if let Some(module) = self.selected_device_module.clone() {
+            let mut module = executor::block_on(module.write());
+            let module_type = module.get_module_type();
+            if ui.button(format!("Iniciar {module_type}")).clicked() {
+                if let Err(e) = runtime.block_on(module.start()) {
+                    self.error(format!(
+                        "Failed to start {module_type}!",
+                    ));
+                    log::error!("{e}");
+                }
+            }
+        };
     }
 }

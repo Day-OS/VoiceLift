@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["piper-rs", "pipewire", "rodio", "easy-pw", "busrt"]
+
 
 [dependencies]
 log = "0.4.27"

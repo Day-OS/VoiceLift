@@ -7,6 +7,7 @@ use crate::base_modules::module_manager_event_handler;
 use crate::base_modules::{
     initialize_module_manager, module_manager::ModuleManagerEvent,
 };
+use crate::ui::screens::ScreenParameters;
 
 use async_lock::RwLock;
 use bevy::{
@@ -24,7 +25,7 @@ use bevy_egui::{
     EguiContextPass, EguiContexts, EguiPlugin,
     egui::{self, Color32, CornerRadius, Frame, Margin, Vec2},
 };
-use bevy_tokio_tasks::TokioTasksPlugin;
+use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 
 use super::screens::{
     ScreenEvent, ScreenManager, config_screen::ConfigScreen,
@@ -103,6 +104,7 @@ fn egui_screen(
     mut window: Single<&mut Window>,
     mut screen_event_w: EventWriter<ScreenEvent>,
     mut module_event_w: EventWriter<ModuleManagerEvent>,
+    runtime: ResMut<TokioTasksRuntime>,
 ) {
     // window.mode =
     // WindowMode::BorderlessFullscreen(MonitorSelection::Current);
@@ -146,14 +148,17 @@ fn egui_screen(
         .collapsible(false)
         .title_bar(false)
         .show(&ctx.clone(), |ui| {
-            screen.draw(
+            let params = ScreenParameters {
+                ctx,
+                module_event_w,
                 module_manager,
                 screen_event_w,
-                module_event_w,
                 ui,
-                ctx,
-                screen_size,
-            );
+                keyboard: screen.keyboard.clone(),
+                runtime,
+                work_area: screen_size,
+            };
+            screen.draw(params);
         });
     let mut new_resolution = Vec2::ZERO;
     if screen.is_collapsable() {
