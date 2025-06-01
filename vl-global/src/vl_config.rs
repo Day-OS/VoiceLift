@@ -26,6 +26,8 @@ pub enum ConfigError {
     IoError(#[from] std::io::Error),
     #[error("ConfigError")]
     ConfigError(#[from] config::ConfigError),
+    #[error("Unknown Error")]
+    UnknownError(#[from] anyhow::Error),
 }
 
 pub struct ConfigManager {
@@ -67,27 +69,33 @@ impl ConfigManager {
             .unwrap()
     }
 
-    pub fn save(&mut self) -> Result<(), ConfigError> {
-        self.modify_and_save(|_| {})
+    pub fn save(&mut self) -> anyhow::Result<()> {
+        self.modify_and_save(|_| Ok(()))
     }
 
     pub fn modify_and_save<F>(
         &mut self,
         callback: F,
-    ) -> Result<(), ConfigError>
+    ) -> anyhow::Result<()>
     where
-        F: for<'a> FnOnce(&'a mut VlConfig),
+        F: for<'a> FnOnce(&'a mut VlConfig) -> anyhow::Result<()>,
     {
         let mut config: VlConfig =
             self.settings.clone().try_deserialize()?;
 
-        callback(&mut config); // Modify the configuration
+        callback(&mut config)?; // Modify the configuration
 
         Self::_save_vl_config(&self.config_path, &config)?;
 
         // Reload settings
         self.settings = Self::load_settings(&self.config_path);
         Ok(())
+    }
+
+    pub fn read(&self) -> Result<VlConfig, ConfigError> {
+        let config: VlConfig =
+            self.settings.clone().try_deserialize()?;
+        Ok(config)
     }
 
     fn _save_vl_config(
@@ -146,10 +154,11 @@ impl Default for VlConfig {
     Serialize,
     Deserialize,
     Clone,
-    Default,
 )]
 pub struct LinuxConfig {
     pub piper_tts_model: String,
+    pub pitch: u8,
+    pub volume: u8,
 }
 
 impl LinuxConfig {
@@ -158,6 +167,16 @@ impl LinuxConfig {
             && path.is_file()
             && path.extension().and_then(|ext| ext.to_str())
                 == Some("json")
+    }
+}
+
+impl Default for LinuxConfig {
+    fn default() -> Self {
+        Self {
+            piper_tts_model: String::default(),
+            pitch: 48,
+            volume: 128,
+        }
     }
 }
 

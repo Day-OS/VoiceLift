@@ -9,6 +9,7 @@ name = "vl_main"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
+anyhow = "1.0.98"
 async-lock = "3.4.0"
 bevy = { version = "0.16.0", default-features = false, features = [
     # "android-native-activity",

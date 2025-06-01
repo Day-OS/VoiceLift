@@ -86,8 +86,10 @@ impl ModuleManager {
     pub fn update_config(&mut self) -> Result<(), ConfigError> {
         let config_clone = self.config.clone();
         let mut config = executor::block_on(config_clone.write());
-        config
-            .modify_and_save(|config| self._update_config(config))?;
+        config.modify_and_save(|config| {
+            self._update_config(config);
+            Ok(())
+        })?;
         Ok(())
     }
 

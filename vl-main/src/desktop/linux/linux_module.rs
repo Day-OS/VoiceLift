@@ -1,12 +1,17 @@
 use crate::base_modules::tts_module::TtsModule;
 use crate::base_modules::{IModule, device_module::DeviceModule};
+use async_lock::RwLock;
+use bevy::image::Volume;
 use busrt::QoS;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::{Rpc, RpcClient};
 use futures::future::BoxFuture;
 use std::fmt::Debug;
+use std::sync::Arc;
 use thiserror::Error;
 use vl_global::AudioDevices;
+use vl_global::vl_config::{ConfigError, ConfigManager};
+use vl_linux_backend::error::LinuxBackendError;
 use vl_linux_backend::event_parameters;
 const BROKER_NAME: &str = ".broker";
 
@@ -205,10 +210,21 @@ impl TtsModule for LinuxModule {
     fn speak(
         &self,
         text: String,
+        config: Arc<RwLock<ConfigManager>>,
     ) -> futures::future::BoxFuture<
         Result<(), Box<dyn std::error::Error>>,
     > {
         Box::pin(async move {
+            let config = config.read().await;
+            let config = config.read()?;
+            if config.linux.is_none() {
+                return Err(Box::new(
+                    LinuxBackendError::ConfigSectionNotFound,
+                )
+                    as Box<dyn std::error::Error>);
+            }
+            let linux_config = config.linux.unwrap();
+
             if let Some(client) = &self._client {
                 let result = client
                     .call(
@@ -217,8 +233,8 @@ impl TtsModule for LinuxModule {
                         rmp_serde::to_vec_named(
                             &event_parameters::RequestTTS {
                                 phrase: text,
-                                pitch: 48,
-                                volume: 128,
+                                pitch: linux_config.pitch,
+                                volume: linux_config.volume,
                             },
                         )?
                         .into(),

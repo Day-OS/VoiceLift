@@ -1,10 +1,4 @@
-use core::f32;
 
-use bevy::app::Main;
-use bevy::ecs::event::EventWriter;
-use bevy::ecs::system::ResMut;
-use bevy_egui::egui;
-use bevy_egui::egui::Button;
 use bevy_egui::egui::Vec2;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
@@ -12,15 +6,11 @@ use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
 
-use crate::base_modules::module_manager::ModuleManager;
-use crate::base_modules::module_manager::ModuleManagerEvent;
 use crate::ui::screens::ScreenParameters;
-use crate::ui::virtual_keyboard::Keyboard;
 
 use super::Screen;
 use super::ScreenEvent;
 use super::main_screen::MainScreen;
-use egui_file_dialog::FileDialog;
 
 #[derive(Default)]
 pub struct ConfigScreen {
@@ -44,7 +34,6 @@ impl Screen for ConfigScreen {
         let ui = params.ui;
         let mut _ctx = params.ctx;
         let work_area = params.work_area;
-        let keyboard = params.keyboard;
         let mut tokio = params.runtime;
 
 
@@ -90,7 +79,13 @@ impl Screen for ConfigScreen {
                                 ui.heading("Configurações do Linux Module");
                                 ui.label(format!("Piper TTS Model Path: {}", linux.piper_tts_model));
                                 if ui.button("Pick file").clicked() {
-                                    // Open the file dialog to pick a file.
+                                    // For some reason it is private?
+                                    // if !linux.piper_tts_model.is_empty(){
+                                    //     let path = Path::new(&linux.piper_tts_model);
+                                    //     if path.exists(){
+                                    //         file_dialog.initial_directory(path.to_path_buf());
+                                    //     }
+                                    // }
                                     file_dialog.pick_file();
                                 }
                                 if let Some(path) = file_dialog.take_picked() {
@@ -102,9 +97,9 @@ impl Screen for ConfigScreen {
 
                                 //linux.piper_tts_model;
                             }
+                            Ok(())
                         },
-                    )
-                    .unwrap();
+                    ).unwrap();
                 file_dialog.update(_ctx);
             });
     });

@@ -72,7 +72,7 @@ pub trait Screen: Sync + Send {
 pub struct ScreenManager {
     pub screen_size: Vec2,
     screens: HashMap<String, Arc<RwLock<dyn Screen>>>,
-    pub selected_screen: Arc<RwLock<dyn Screen>>,
+    selected_screen: Arc<RwLock<dyn Screen>>,
     pub keyboard: Arc<RwLock<Keyboard>>,
 }
 impl ScreenManager {

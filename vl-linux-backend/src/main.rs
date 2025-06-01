@@ -13,9 +13,13 @@ use std::path::Path;
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::Duration;
 use tokio::time::sleep;
+use vl_global::vl_config::ConfigManager;
+mod error;
 mod event_handler;
 mod event_parameters;
 mod events;
+use crate::error::LinuxBackendError;
+
 mod piper;
 use easy_pw::manager::{self, PipeWireManager};
 
@@ -27,7 +31,7 @@ static PIPERTTS_MANAGER: OnceLock<Arc<RwLock<PiperTTSManager>>> =
 
 #[cfg(target_os = "linux")]
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), LinuxBackendError> {
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Debug,
         ConfigBuilder::new()
@@ -38,16 +42,28 @@ async fn main() {
     )])
     .unwrap();
 
+    let config_manager = ConfigManager::new()?;
+    let config = config_manager.read()?;
+
+    if config.linux.is_none() {
+        return Err(LinuxBackendError::ConfigSectionNotFound);
+    }
+
+    let linux = config.linux.as_ref().unwrap();
+    let path = linux.piper_tts_model.clone();
+
+    let piper_model_path = Path::new(&path);
+    if !piper_model_path.exists() {
+        panic!(
+            "Piper model path does not exist: {piper_model_path:?}"
+        )
+    }
+
     let _ = PIPEWIRE_MANAGER
         .set(RwLock::new(manager::PipeWireManager::default()));
 
-    let piper_tts_manager = piper::PiperTTSManager::new(
-        Path::new(
-            // "/usr/share/piper-voices/en/en_US/glados/high/en_us-glados-high.onnx.json",
-            "/usr/share/piper-voices/pt/pt_BR/droidela-v2/medium/droidela-v2.onnx.json",
-        ),
-        1,
-    ).unwrap();
+    let piper_tts_manager =
+        piper::PiperTTSManager::new(piper_model_path, 1).unwrap();
 
     let lock_pipertts = Arc::new(RwLock::new(piper_tts_manager));
     _ = PIPERTTS_MANAGER.set(lock_pipertts.clone());
@@ -92,4 +108,6 @@ async fn main() {
     {
         sleep(Duration::from_secs(1)).await;
     }
+
+    Ok(())
 }
