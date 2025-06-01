@@ -15,6 +15,7 @@ use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
+use vl_global::vl_config::ConfigManager;
 
 use crate::base_modules::module_manager::ModuleManager;
 use crate::base_modules::tts_module::TtsModule;
@@ -101,9 +102,10 @@ impl MainScreen {
                     async fn speak(
                         module: Arc<RwLock<dyn TtsModule>>,
                         text: String,
+                        config: Arc<RwLock<ConfigManager>>,
                     ) {
                         let module = module.read().await;
-                        if let Err(e) = module.speak(text).await {
+                        if let Err(e) = module.speak(text, config).await {
                             log::error!("Error while trying to reproduce TTS {e}");
                         }
                     }
@@ -114,6 +116,7 @@ impl MainScreen {
                         runtime.spawn(speak(
                             tts_module.clone(),
                             self.text.clone(),
+                            module_manager.config.clone(),
                         ));
                     }
                 }

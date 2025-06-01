@@ -92,6 +92,12 @@ impl ConfigManager {
         Ok(())
     }
 
+    pub fn read(&self) -> Result<VlConfig, ConfigError> {
+        let config: VlConfig =
+            self.settings.clone().try_deserialize()?;
+        Ok(config)
+    }
+
     fn _save_vl_config(
         config_path: &PathBuf,
         vl_config: &VlConfig,
@@ -148,10 +154,11 @@ impl Default for VlConfig {
     Serialize,
     Deserialize,
     Clone,
-    Default,
 )]
 pub struct LinuxConfig {
     pub piper_tts_model: String,
+    pub pitch: u8,
+    pub volume: u8,
 }
 
 impl LinuxConfig {
@@ -160,6 +167,16 @@ impl LinuxConfig {
             && path.is_file()
             && path.extension().and_then(|ext| ext.to_str())
                 == Some("json")
+    }
+}
+
+impl Default for LinuxConfig {
+    fn default() -> Self {
+        Self {
+            piper_tts_model: String::default(),
+            pitch: 48,
+            volume: 128,
+        }
     }
 }
 

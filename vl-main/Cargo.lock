@@ -5593,6 +5593,7 @@ dependencies = [
 name = "vl-main"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-lock 3.4.0",
  "bevy",
  "bevy-tokio-tasks",
