@@ -1,16 +1,23 @@
 use core::f32;
+use std::sync::Arc;
 
+use async_lock::RwLock;
 use bevy::ecs::event::EventWriter;
+use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
 use bevy_egui::egui::Button;
 use bevy_egui::egui::Color32;
 use bevy_egui::egui::FontId;
 use bevy_egui::egui::Vec2;
+use bevy_tokio_tasks::TokioTasksRuntime;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
+use futures::executor;
 
+use crate::base_modules::module_manager::ModuleManager;
+use crate::base_modules::tts_module::TtsModule;
 use crate::ui::screens::ScreenParameters;
 use crate::ui::virtual_keyboard::Keyboard;
 
@@ -68,6 +75,8 @@ impl MainScreen {
         &self,
         tui: &mut egui_taffy::Tui,
         button_width: f32,
+        tokio: &ResMut<TokioTasksRuntime>,
+        module_manager: &ResMut<ModuleManager>,
     ) {
         tui.style(taffy::Style {
             flex_direction: taffy::FlexDirection::Row,
@@ -78,13 +87,36 @@ impl MainScreen {
         })
         .add(|tui| {
             tui.ui(|ui| {
-                ui.add_sized(
-                    [button_width, ui.available_height()],
-                    Button::new(
-                        egui_material_icons::icons::ICON_VOLUME_UP,
+                let button = Button::new(
+                    egui_material_icons::icons::ICON_VOLUME_UP,
+                )
+                .corner_radius(0);
+                if ui
+                    .add_sized(
+                        [button_width, ui.available_height()],
+                        button,
                     )
-                    .corner_radius(0),
-                );
+                    .clicked()
+                {
+                    async fn speak(
+                        module: Arc<RwLock<dyn TtsModule>>,
+                        text: String,
+                    ) {
+                        let module = module.read().await;
+                        if let Err(e) = module.speak(text).await {
+                            log::error!("Error while trying to reproduce TTS {e}");
+                        }
+                    }
+                    let runtime = tokio.runtime();
+                    if let Some(tts_module) =
+                        &module_manager.selected_tts_module
+                    {
+                        runtime.spawn(speak(
+                            tts_module.clone(),
+                            self.text.clone(),
+                        ));
+                    }
+                }
             })
         });
     }
@@ -168,14 +200,8 @@ impl Screen for MainScreen {
     fn uses_keyboard(&self) -> bool {
         true
     }
-    fn draw(&mut self, params: ScreenParameters) {
-        let mut module_manager = params.module_manager;
-        let mut screen_event_w = params.screen_event_w;
+    fn draw(&mut self, mut params: ScreenParameters) {
         let ui = params.ui;
-        let mut _ctx = params.ctx;
-        let work_area = params.work_area;
-        let keyboard = params.keyboard;
-        module_manager._throw_error_message(_ctx);
         let style = ui.style_mut();
         let font_size = 18.0;
         let button_width = 50.;
@@ -184,10 +210,11 @@ impl Screen for MainScreen {
         {
             style.size = font_size;
         }
-        let mut work_area = work_area;
+        let mut work_area = params.work_area;
         work_area.y = 0.;
 
-        self.show_menu_buttons(ui, &mut screen_event_w);
+        self.show_menu_buttons(ui, &mut params.screen_event_w);
+        let mut keyboard = params.keyboard.clone();
 
         tui(ui, ui.id().with("demo"))
             .reserve_space(work_area)
@@ -226,9 +253,16 @@ impl Screen for MainScreen {
                 })
                 .add(|tui| {
                     self.show_user_input(tui, font_size);
-                    self.show_run_button(tui, button_width);
+                    self.show_run_button(
+                        tui,
+                        button_width,
+                        &params.runtime,
+                        &params.module_manager,
+                    );
                 });
-                self.show_keyboard(tui, keyboard);
+                let mut keyboard =
+                    executor::block_on(keyboard.write());
+                self.show_keyboard(tui, &mut keyboard);
             });
     }
 }

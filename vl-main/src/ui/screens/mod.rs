@@ -12,6 +12,7 @@ use bevy::{
     platform::collections::HashMap,
 };
 use bevy_egui::{egui, input::EguiInputEvent};
+use bevy_tokio_tasks::TokioTasksRuntime;
 use futures::executor;
 
 use bevy_egui::egui::Vec2;
@@ -23,13 +24,14 @@ use crate::base_modules::module_manager::{
 use super::virtual_keyboard::Keyboard;
 
 pub struct ScreenParameters<'w> {
-    module_manager: ResMut<'w, ModuleManager>,
-    screen_event_w: EventWriter<'w, ScreenEvent>,
-    module_event_w: EventWriter<'w, ModuleManagerEvent>,
-    ui: &'w mut egui::Ui,
-    ctx: &'w mut egui::Context,
-    work_area: Vec2,
-    keyboard: &'w mut Keyboard,
+    pub module_manager: ResMut<'w, ModuleManager>,
+    pub screen_event_w: EventWriter<'w, ScreenEvent>,
+    pub module_event_w: EventWriter<'w, ModuleManagerEvent>,
+    pub ui: &'w mut egui::Ui,
+    pub ctx: &'w mut egui::Context,
+    pub work_area: Vec2,
+    pub keyboard: Arc<RwLock<Keyboard>>,
+    pub runtime: ResMut<'w, TokioTasksRuntime>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -71,7 +73,7 @@ pub struct ScreenManager {
     pub screen_size: Vec2,
     screens: HashMap<String, Arc<RwLock<dyn Screen>>>,
     pub selected_screen: Arc<RwLock<dyn Screen>>,
-    pub keyboard: Keyboard,
+    pub keyboard: Arc<RwLock<Keyboard>>,
 }
 impl ScreenManager {
     pub fn new(first_screen: Arc<RwLock<dyn Screen>>) -> Self {
@@ -82,7 +84,7 @@ impl ScreenManager {
             screen_size: Vec2::default(),
             screens: hashmap,
             selected_screen: first_screen,
-            keyboard: Keyboard::default(),
+            keyboard: Arc::new(RwLock::new(Keyboard::default())),
         }
     }
     pub fn apply_screen(
@@ -124,26 +126,11 @@ impl ScreenManager {
     }
 
     /// Draw the current selected screen into the EGUI Window
-    pub fn draw(
-        &mut self,
-        module_manager: ResMut<'_, ModuleManager>,
-        screen_event_w: EventWriter<ScreenEvent>,
-        module_event_w: EventWriter<ModuleManagerEvent>,
-        ui: &mut egui::Ui,
-        ctx: &mut egui::Context,
-        work_area: Vec2,
-    ) {
+    pub fn draw(&mut self, mut params: ScreenParameters<'_>) {
         let mut selected_screen =
             executor::block_on(self.selected_screen.write());
-        let params = ScreenParameters {
-            ctx,
-            module_event_w,
-            module_manager,
-            screen_event_w,
-            ui,
-            work_area,
-            keyboard: &mut self.keyboard,
-        };
+        params.module_manager._throw_error_message(params.ctx);
+
         selected_screen.draw(params);
     }
 
@@ -156,17 +143,19 @@ impl ScreenManager {
 
 // Keyboard
 pub fn keyboard_output_event(
-    mut screen: ResMut<ScreenManager>,
+    screen: ResMut<ScreenManager>,
     event_w: EventWriter<EguiInputEvent>,
 ) {
-    screen.keyboard.write_events(event_w);
+    let mut keyboard = executor::block_on(screen.keyboard.write());
+    keyboard.write_events(event_w);
 }
 
 pub fn keyboard_input_event(
-    mut screen: ResMut<ScreenManager>,
+    screen: ResMut<ScreenManager>,
     event_r: EventReader<EguiInputEvent>,
 ) {
-    screen.keyboard.read_events(event_r)
+    let mut keyboard = executor::block_on(screen.keyboard.write());
+    keyboard.read_events(event_r)
 }
 
 pub fn screen_event_handler(
