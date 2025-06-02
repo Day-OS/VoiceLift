@@ -105,6 +105,9 @@ impl MainScreen {
                         config: Arc<RwLock<ConfigManager>>,
                     ) {
                         let module = module.read().await;
+                        if let Err(e) = module.stop_speaking().await{
+                            log::error!("Error while trying to stop the current audio {e}");
+                        };
                         if let Err(e) = module.speak(text, config).await {
                             log::error!("Error while trying to reproduce TTS {e}");
                         }

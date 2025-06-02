@@ -12,7 +12,10 @@ use thiserror::Error;
 use vl_global::AudioDevices;
 use vl_global::vl_config::{ConfigError, ConfigManager};
 use vl_linux_backend::error::LinuxBackendError;
-use vl_linux_backend::event_parameters;
+use vl_linux_backend::event_parameters::{
+    self, METHOD_GET_DEVICES, METHOD_LINK_DEVICES, METHOD_SPEAK,
+    METHOD_STOP_SPEAK, METHOD_UNLINK_DEVICES,
+};
 const BROKER_NAME: &str = ".broker";
 
 #[derive(Error, Debug)]
@@ -80,7 +83,7 @@ impl DeviceModule for LinuxModule {
                 let result = client
                     .call(
                         BROKER_NAME,
-                        "get_devices",
+                        METHOD_GET_DEVICES,
                         rmp_serde::to_vec_named(
                             &event_parameters::RequestDevices {},
                         )?
@@ -121,7 +124,7 @@ impl DeviceModule for LinuxModule {
                 let result = client
                     .call(
                         BROKER_NAME,
-                        "link_devices",
+                        METHOD_LINK_DEVICES,
                         rmp_serde::to_vec_named(
                             &event_parameters::RequestDeviceLinkage {
                                 target_device: input_device,
@@ -163,7 +166,7 @@ impl DeviceModule for LinuxModule {
                 let result = client
                 .call(
                     BROKER_NAME,
-                    "unlink_devices",
+                    METHOD_UNLINK_DEVICES,
                     rmp_serde::to_vec_named(
                         &event_parameters::RequestDeviceUnLinkage {
                             target_device: input_device,
@@ -229,7 +232,7 @@ impl TtsModule for LinuxModule {
                 let result = client
                     .call(
                         BROKER_NAME,
-                        "speak",
+                        METHOD_SPEAK,
                         rmp_serde::to_vec_named(
                             &event_parameters::RequestTTS {
                                 phrase: text,
@@ -249,8 +252,8 @@ impl TtsModule for LinuxModule {
                     })
                     .unwrap();
 
-                let response: event_parameters::ResponseDeviceUnLinkage =
-                rmp_serde::from_slice(result.payload())?;
+                let response: event_parameters::ResponseTTS =
+                    rmp_serde::from_slice(result.payload())?;
                 // Throws error if the result is not successful
                 response.result.map_err(|e| {
                     LinuxModuleError::FailedToSpeak(e)
@@ -269,6 +272,39 @@ impl TtsModule for LinuxModule {
     ) -> futures::future::BoxFuture<
         Result<(), Box<dyn std::error::Error>>,
     > {
-        panic!("not implemented");
+        Box::pin(async move {
+            if let Some(client) = &self._client {
+                let result = client
+                    .call(
+                        BROKER_NAME,
+                        METHOD_STOP_SPEAK,
+                        rmp_serde::to_vec_named(
+                            &event_parameters::RequestStopTTS {},
+                        )?
+                        .into(),
+                        QoS::Processed,
+                    )
+                    .await
+                    .map_err(|e| {
+                        let empty_str = "empty_data";
+                        let data =
+                            e.data().unwrap_or(empty_str.as_bytes());
+                        String::from_utf8(data.to_vec())
+                    })
+                    .unwrap();
+
+                let response: event_parameters::ResponseStopTTS =
+                    rmp_serde::from_slice(result.payload())?;
+                // Throws error if the result is not successful
+                response.result.map_err(|e| {
+                    LinuxModuleError::FailedToSpeak(e)
+                })?;
+                Ok(())
+            } else {
+                Err(Box::new(
+                    LinuxModuleError::BackendServiceNotStarted,
+                ) as Box<dyn std::error::Error>)
+            }
+        })
     }
 }
