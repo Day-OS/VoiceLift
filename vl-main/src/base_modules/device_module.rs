@@ -1,5 +1,5 @@
 use futures::future::BoxFuture;
-use vl_global::AudioDevices;
+use vl_global::audio_devices::AudioDevices;
 
 use super::IModule;
 

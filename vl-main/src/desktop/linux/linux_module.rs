@@ -9,7 +9,7 @@ use futures::future::BoxFuture;
 use std::fmt::Debug;
 use std::sync::Arc;
 use thiserror::Error;
-use vl_global::AudioDevices;
+use vl_global::audio_devices::AudioDevices;
 use vl_global::vl_config::{ConfigError, ConfigManager};
 use vl_linux_backend::error::LinuxBackendError;
 use vl_linux_backend::event_parameters::{

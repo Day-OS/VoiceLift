@@ -1,11 +1,15 @@
 
+use bevy_egui::egui;
 use bevy_egui::egui::Vec2;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
+use tokio::runtime;
+use vl_global::audio_devices::AudioDevices;
 
+use crate::base_modules::device_module;
 use crate::ui::screens::ScreenParameters;
 
 use super::Screen;
@@ -92,6 +96,38 @@ impl Screen for ConfigScreen {
                                     let path = path.to_path_buf();
                                     if linux.validate_piper_tts_model(&path){
                                         linux.piper_tts_model = path.display().to_string();
+                                    }
+                                }
+
+                                if let Some(device_module) = &mut module_manager.selected_device_module{
+                                    let runtime = tokio.runtime();
+                                    let mut device_module = runtime.block_on(device_module.write());
+                                    if device_module.is_started() {
+                                       let devices = runtime.block_on(device_module.get_devices());
+                                        match devices {
+                                            Ok(devices) => {
+                                                egui::SidePanel::left("left_panel").show_inside(ui, |ui| {
+                                                    egui::ScrollArea::vertical().show(ui, |ui| {
+                                                        let comparison = AudioDevices::compare_lists(&devices, &config.devices);
+                                                    
+                                                    for device in comparison.selected_and_available.input_devices {
+                                                        ui.label(device);
+                                                    }
+                                                    for device in comparison.not_selected_but_available.input_devices {
+                                                        ui.label(device);
+                                                    }
+                                                    for device in comparison.selected_but_not_available.input_devices {
+                                                        ui.label(device);
+                                                    }
+                                                    });
+                                                    
+                                                });
+
+                                            },
+                                            Err(e) => {
+                                                log::error!("Failed to get devices: {e}")
+                                            },
+                                        }                                       
                                     }
                                 }
 

@@ -4,7 +4,7 @@ use crate::{
 };
 use busrt::rpc::{RpcEvent, RpcResult};
 use easy_pw::port::PortDirection;
-use vl_global::AudioDevices;
+use vl_global::audio_devices::AudioDevices;
 
 fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
     // Verify if the event payload is of type RequestDevices
