@@ -7,9 +7,10 @@ use std::path::Path;
 use thiserror::Error;
 const CARGO_PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
+// TODO: Unify errors
 #[derive(Error, Debug)]
 #[error("data store disconnected")]
-pub enum VlPiperError {
+pub enum VlLinuxBackendInternalError {
     #[error("Piper Error")]
     Piper(#[from] piper_rs::PiperError),
     #[error("Rodio Play Error")]
@@ -31,7 +32,7 @@ impl PiperTTSManager {
     pub fn new(
         model_config_path: &Path,
         speaker_id: i64,
-    ) -> Result<Self, VlPiperError> {
+    ) -> Result<Self, VlLinuxBackendInternalError> {
         let model = piper_rs::from_config_path(model_config_path)?;
         model.set_speaker(speaker_id);
         let speech_synthesizer = PiperSpeechSynthesizer::new(model)?;
@@ -55,7 +56,7 @@ impl PiperTTSManager {
         text: String,
         pitch: u8,
         volume: u8,
-    ) -> Result<(), VlPiperError> {
+    ) -> Result<(), VlLinuxBackendInternalError> {
         let audio = self.model.synthesize_parallel(
             text.clone(),
             Some(AudioOutputConfig {
@@ -73,6 +74,13 @@ impl PiperTTSManager {
         Ok(())
     }
 
+    pub fn stop_speak(
+        &self,
+    ) -> Result<(), VlLinuxBackendInternalError> {
+        self.rodio_sink.stop();
+        Ok(())
+    }
+
     pub fn get_handle_name() -> String {
         format!("alsa_playback.{CARGO_PKG_NAME}")
     }
@@ -80,7 +88,7 @@ impl PiperTTSManager {
 
 fn stream_to_sample_buffer(
     stream: PiperSpeechStreamParallel,
-) -> Result<SamplesBuffer<f32>, VlPiperError> {
+) -> Result<SamplesBuffer<f32>, VlLinuxBackendInternalError> {
     // Converts Audio into Vec<f32> samples
     let mut samples: Vec<f32> = Vec::new();
     let mut samplerate: u32 = 22050;

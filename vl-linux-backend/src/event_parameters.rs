@@ -1,6 +1,13 @@
 use serde::Deserialize;
 use serde::Serialize;
 use vl_global::AudioDevices;
+
+pub const METHOD_GET_DEVICES: &str = "get_devices";
+pub const METHOD_LINK_DEVICES: &str = "link_devices";
+pub const METHOD_UNLINK_DEVICES: &str = "unlink_devices";
+pub const METHOD_SPEAK: &str = "speak";
+pub const METHOD_STOP_SPEAK: &str = "stop_speak";
+
 // Get Devices
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestDevices {}
@@ -42,5 +49,14 @@ pub struct RequestTTS {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ResponseTTS {
+    pub result: Result<(), String>,
+}
+
+// Talk
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RequestStopTTS {}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ResponseStopTTS {
     pub result: Result<(), String>,
 }
