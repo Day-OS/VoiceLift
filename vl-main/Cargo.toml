@@ -11,6 +11,7 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 anyhow = "1.0.98"
 async-lock = "3.4.0"
+async-trait = "0.1.88"
 bevy = { version = "0.16.0", default-features = false, features = [
     # "android-native-activity",
     # "android_shared_stdcxx",

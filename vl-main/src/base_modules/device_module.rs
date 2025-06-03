@@ -1,4 +1,4 @@
-use futures::future::BoxFuture;
+use busrt::async_trait;
 use vl_global::audio_devices::AudioDevices;
 
 use super::IModule;
@@ -10,10 +10,11 @@ fn is_capable_of_linking_error(capacity: bool) -> String {
     "This module is not capable of linking devices. Please check your code.".to_string()
 }
 pub const MODULE_TYPE: &str = "Device Module";
+
+#[async_trait]
 pub trait DeviceModule: IModule {
-    fn get_devices(
-        &self,
-    ) -> BoxFuture<Result<AudioDevices, Box<dyn std::error::Error>>>;
+    async fn get_devices(&self) -> anyhow::Result<AudioDevices>;
+
     fn get_module_type(&self) -> &'static str {
         MODULE_TYPE
     }
@@ -21,20 +22,20 @@ pub trait DeviceModule: IModule {
         false
     }
 
-    fn link_device(
+    async fn link_device(
         &self,
         target_device: String,
-    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>> {
+    ) -> anyhow::Result<()> {
         panic!(
             "{}",
             is_capable_of_linking_error(self.is_capable_of_linking())
         )
     }
 
-    fn unlink_device(
+    async fn unlink_device(
         &self,
         target_device: String,
-    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>> {
+    ) -> anyhow::Result<()> {
         panic!(
             "{}",
             is_capable_of_linking_error(self.is_capable_of_linking())

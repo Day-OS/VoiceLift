@@ -3,9 +3,11 @@ use std::sync::Arc;
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
 use crate::base_modules::module_manager::ModuleManager;
-use crate::base_modules::module_manager_event_handler;
 use crate::base_modules::{
     initialize_module_manager, module_manager::ModuleManagerEvent,
+};
+use crate::base_modules::{
+    module_manager_event_handler, module_manager_ticker,
 };
 use crate::ui::screens::ScreenParameters;
 
@@ -46,7 +48,10 @@ pub fn run() {
     app.add_event::<ScreenEvent>();
     app.add_event::<ModuleManagerEvent>();
     app.add_systems(Startup, initialize_module_manager);
-    app.add_systems(Update, module_manager_event_handler);
+    app.add_systems(
+        Update,
+        (module_manager_event_handler, module_manager_ticker),
+    );
     app.add_plugins(TokioTasksPlugin::default());
     app.add_plugins(
         DefaultPlugins

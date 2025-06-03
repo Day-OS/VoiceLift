@@ -6,8 +6,9 @@ use std::any::type_name;
 use std::sync::Arc;
 
 use async_lock::RwLock;
-use bevy::ecs::event::EventReader;
 use bevy::ecs::system::ResMut;
+use bevy::ecs::{event::EventReader, system::Res};
+use bevy::time::Time;
 use bevy_tokio_tasks::TokioTasksRuntime;
 use device_module::DeviceModule;
 use futures::executor;
@@ -18,6 +19,8 @@ use tts_module::TtsModule;
 use crate::base_modules::module_manager::{
     ModuleManager, ModuleManagerEvent,
 };
+use crate::ui::screens::config_screen::ConfigScreen;
+use crate::ui::screens::{Screen, ScreenManager};
 
 #[derive(Debug, Clone)]
 pub enum Module {
@@ -143,4 +146,51 @@ pub fn module_manager_event_handler(
     runtime: ResMut<TokioTasksRuntime>,
 ) {
     let runtime = runtime.runtime();
+}
+
+//; System for activating repeating tasks in the background
+pub fn module_manager_ticker(
+    mut module_manager: ResMut<ModuleManager>,
+    time: Res<Time>,
+    tokio: ResMut<TokioTasksRuntime>,
+    mut screen: ResMut<ScreenManager>,
+) {
+    let mut timer = &mut module_manager._timer;
+    timer.tick(time.delta());
+
+    if timer.finished() {
+        let runtime = tokio.runtime();
+        runtime.block_on(async {
+            get_available_devices(module_manager, screen).await;
+        });
+    }
+}
+
+async fn get_available_devices(
+    mut module_manager: ResMut<'_, ModuleManager>,
+    screen: ResMut<'_, ScreenManager>,
+) {
+    if screen.current_screen_name() != ConfigScreen::get_name() {
+        return;
+    }
+    let selected_device_module =
+        module_manager.selected_device_module.clone();
+    if selected_device_module.is_none() {
+        return;
+    }
+    let module = selected_device_module.unwrap();
+    let module = module.write().await;
+
+    if !module.is_started() {
+        return;
+    }
+
+    let devices = module.get_devices().await;
+    if let Err(e) = devices {
+        log::error!("{e}");
+        return;
+    }
+    let devices = devices.unwrap();
+
+    module_manager.available_devices = devices;
 }

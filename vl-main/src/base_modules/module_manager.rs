@@ -10,13 +10,15 @@ use bevy::ecs::event::EventWriter;
 use bevy::ecs::resource::Resource;
 use bevy::ecs::system::ResMut;
 use bevy::platform::collections::HashMap;
+use bevy::time::Timer;
+use bevy::time::TimerMode;
 use bevy_egui::egui;
-use core::panic;
 use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
 use futures::executor;
-use std::fmt::format;
 use std::sync::Arc;
+use std::time::Duration;
+use vl_global::audio_devices::AudioDevices;
 use vl_global::vl_config::ConfigError;
 use vl_global::vl_config::ConfigManager;
 use vl_global::vl_config::VlConfig;
@@ -37,6 +39,8 @@ pub struct ModuleManager {
         Option<Arc<RwLock<dyn DeviceModule>>>,
     pub(crate) selected_tts_module:
         Option<Arc<RwLock<dyn TtsModule>>>,
+    pub(super) _timer: Timer,
+    pub available_devices: AudioDevices,
 }
 
 impl Default for ModuleManager {
@@ -59,6 +63,11 @@ impl ModuleManager {
             modules: HashMap::new(),
             selected_device_module: None,
             selected_tts_module: None,
+            _timer: Timer::new(
+                Duration::from_secs(1),
+                TimerMode::Repeating,
+            ),
+            available_devices: AudioDevices::default(),
         }
     }
     pub async fn initialize(&mut self) -> &mut Self {

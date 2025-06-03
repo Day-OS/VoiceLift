@@ -13,7 +13,7 @@ use bevy::{
 };
 use bevy_egui::{egui, input::EguiInputEvent};
 use bevy_tokio_tasks::TokioTasksRuntime;
-use futures::executor;
+use futures::executor::{self, block_on};
 
 use bevy_egui::egui::Vec2;
 
@@ -87,6 +87,11 @@ impl ScreenManager {
             keyboard: Arc::new(RwLock::new(Keyboard::default())),
         }
     }
+    pub fn current_screen_name(&self) -> &str {
+        let screen = block_on(self.selected_screen.read());
+        screen.get_screen_name()
+    }
+
     pub fn apply_screen(
         &mut self,
         screen_name: &String,

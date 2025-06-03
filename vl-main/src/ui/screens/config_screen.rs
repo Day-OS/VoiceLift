@@ -99,37 +99,25 @@ impl Screen for ConfigScreen {
                                     }
                                 }
 
-                                if let Some(device_module) = &mut module_manager.selected_device_module{
-                                    let runtime = tokio.runtime();
-                                    let mut device_module = runtime.block_on(device_module.write());
-                                    if device_module.is_started() {
-                                       let devices = runtime.block_on(device_module.get_devices());
-                                        match devices {
-                                            Ok(devices) => {
-                                                egui::SidePanel::left("left_panel").show_inside(ui, |ui| {
-                                                    egui::ScrollArea::vertical().show(ui, |ui| {
-                                                        let comparison = AudioDevices::compare_lists(&devices, &config.devices);
-                                                    
-                                                    for device in comparison.selected_and_available.input_devices {
-                                                        ui.label(device);
-                                                    }
-                                                    for device in comparison.not_selected_but_available.input_devices {
-                                                        ui.label(device);
-                                                    }
-                                                    for device in comparison.selected_but_not_available.input_devices {
-                                                        ui.label(device);
-                                                    }
-                                                    });
-                                                    
-                                                });
-
-                                            },
-                                            Err(e) => {
-                                                log::error!("Failed to get devices: {e}")
-                                            },
-                                        }                                       
+                                let devices = module_manager.available_devices.clone();
+                                egui::SidePanel::left("left_panel").show_inside(ui, |ui| {
+                                    egui::ScrollArea::vertical().show(ui, |ui| {
+                                        let comparison = AudioDevices::compare_lists(&devices, &config.devices);
+                                    
+                                    for device in comparison.selected_and_available.input_devices {
+                                        ui.label(device);
                                     }
-                                }
+                                    for device in comparison.not_selected_but_available.input_devices {
+                                        ui.label(device);
+                                    }
+                                    for device in comparison.selected_but_not_available.input_devices {
+                                        ui.label(device);
+                                    }
+                                    });
+                                    
+                                });
+
+                                    
 
                                 //linux.piper_tts_model;
                             }
