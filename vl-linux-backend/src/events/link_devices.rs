@@ -9,7 +9,7 @@ fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
     // Verify if the event payload is of type RequestDevices
     let event: event_parameters::RequestDeviceLinkage =
         rmp_serde::from_slice(event.payload()).map_err(|err| {
-            format!("Failed to deserialize request: {}", err)
+            format!("Failed to deserialize request: {err}")
         })?;
     // Get PipeWire Manager Instance
     let manager = PIPEWIRE_MANAGER
@@ -17,13 +17,13 @@ fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
         .ok_or("PipeWireManager not initialized")?
         .read()
         .map_err(|e| {
-            format!("Failed to lock PipeWireManager: {}", e)
+            format!("Failed to lock PipeWireManager: {e}")
         })?;
 
     let objects = manager.get_objects();
 
     let objects = objects.read().map_err(|e| {
-        format!("Failed to lock PipeWireObjects: {}", e)
+        format!("Failed to lock PipeWireObjects: {e}")
     })?;
 
     // Find Objects
@@ -44,7 +44,7 @@ fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
 pub fn evt_link_devices(event: RpcEvent) -> RpcResult {
     let result = _evt_link_devices(event);
     if let Err(e) = result.clone() {
-        log::error!("Failed to link devices: {}", e);
+        log::error!("Failed to link devices: {e}");
     }
     let response = rmp_serde::to_vec(
         &event_parameters::ResponseDeviceLinkage { result },

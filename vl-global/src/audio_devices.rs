@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(
@@ -10,17 +11,32 @@ pub struct AudioDevices {
     pub output_devices: Vec<String>,
 }
 
-pub struct AudioDevicesComparison {
-    pub selected_and_available: AudioDevices,
-    pub not_selected_but_available: AudioDevices,
-    pub selected_but_not_available: AudioDevices,
+#[derive(Eq, PartialEq, Hash)]
+pub enum AudioDeviceStatus {
+    SelectedAndAvailable,
+    NotSelectedButAvailable,
+    SelectedButNotAvailable,
 }
+
+#[derive(Eq, PartialEq, Hash)]
+pub enum AudioDeviceType {
+    INPUT,
+    OUTPUT,
+}
+
+pub struct AudioDevicesComparison(
+    pub  IndexMap<
+        AudioDeviceType,
+        IndexMap<AudioDeviceStatus, Vec<String>>,
+    >,
+);
 
 impl AudioDevices {
     fn _compare_lists(
+        data: &mut IndexMap<AudioDeviceStatus, Vec<String>>,
         available: &[String],
         selected: &[String],
-    ) -> (Vec<String>, Vec<String>, Vec<String>) {
+    ) {
         let available_set: HashSet<_> = available.iter().collect();
         let selected_set: HashSet<_> = selected.iter().collect();
 
@@ -28,62 +44,70 @@ impl AudioDevices {
             .intersection(&available_set)
             .map(|&s| s.clone())
             .collect();
+        data.insert(
+            AudioDeviceStatus::SelectedAndAvailable,
+            selected_and_available,
+        );
 
         let not_selected_but_available: Vec<String> = available_set
             .difference(&selected_set)
             .map(|&s| s.clone())
             .collect();
+        data.insert(
+            AudioDeviceStatus::NotSelectedButAvailable,
+            not_selected_but_available,
+        );
 
         let selected_but_not_available: Vec<String> = selected_set
             .difference(&available_set)
             .map(|&s| s.clone())
             .collect();
 
-        (
-            selected_and_available,
-            not_selected_but_available,
+        data.insert(
+            AudioDeviceStatus::SelectedButNotAvailable,
             selected_but_not_available,
-        )
+        );
     }
 
     pub fn compare_lists(
         available_list: &AudioDevices,
         selected_list: &AudioDevices,
     ) -> AudioDevicesComparison {
+        let mut result: IndexMap<
+            AudioDeviceType,
+            IndexMap<AudioDeviceStatus, Vec<String>>,
+        > = IndexMap::new();
+
+        // ---------------
+        // Input Handling
+        // ---------------
+        let mut input: IndexMap<AudioDeviceStatus, Vec<String>> =
+            IndexMap::new();
+
         // Process input devices
-        let (input_sa, input_nba, input_sna) = Self::_compare_lists(
+        Self::_compare_lists(
+            &mut input,
             &available_list.input_devices,
             &selected_list.input_devices,
         );
 
-        // Process output devices
-        let (output_sa, output_nba, output_sna) =
-            Self::_compare_lists(
-                &available_list.output_devices,
-                &selected_list.output_devices,
-            );
+        result.insert(AudioDeviceType::INPUT, input);
 
-        AudioDevicesComparison {
-            selected_and_available: AudioDevices {
-                input_devices: input_sa,
-                output_devices: output_sa,
-            }
-            .sort(),
-            not_selected_but_available: AudioDevices {
-                input_devices: input_nba,
-                output_devices: output_nba,
-            }
-            .sort(),
-            selected_but_not_available: AudioDevices {
-                input_devices: input_sna,
-                output_devices: output_sna,
-            }
-            .sort(),
-        }
-    }
-    fn sort(mut self) -> Self {
-        self.input_devices.sort();
-        self.output_devices.sort();
-        self
+        // ---------------
+        // Output Handling
+        // ---------------
+        let mut output: IndexMap<AudioDeviceStatus, Vec<String>> =
+            IndexMap::new();
+
+        // Process input devices
+        Self::_compare_lists(
+            &mut output,
+            &available_list.output_devices,
+            &selected_list.output_devices,
+        );
+
+        result.insert(AudioDeviceType::OUTPUT, output);
+
+        AudioDevicesComparison(result)
     }
 }

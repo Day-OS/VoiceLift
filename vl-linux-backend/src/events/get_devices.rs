@@ -10,7 +10,7 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
     // Verify if the event payload is of type RequestDevices
     let _: event_parameters::RequestDevices =
         rmp_serde::from_slice(event.payload()).map_err(|err| {
-            format!("Failed to deserialize request: {}", err)
+            format!("Failed to deserialize request: {err}")
         })?;
 
     // Get PipeWire Manager Instance
@@ -19,7 +19,7 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
         .ok_or("PipeWireManager not initialized")?
         .read()
         .map_err(|e| {
-            format!("Failed to lock PipeWireManager: {}", e)
+            format!("Failed to lock PipeWireManager: {e}")
         })?;
 
     let objects = manager.get_objects();
@@ -31,7 +31,7 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
     };
 
     let objects = objects.read().map_err(|e| {
-        format!("Failed to lock PipeWireObjects: {}", e)
+        format!("Failed to lock PipeWireObjects: {e}")
     })?;
 
     // Fill Response Struct
@@ -58,7 +58,7 @@ fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
 pub fn evt_get_devices(event: RpcEvent) -> RpcResult {
     let result = _evt_get_devices(event);
     if let Err(e) = result.clone() {
-        log::error!("Failed to get devices: {}", e);
+        log::error!("Failed to get devices: {e}");
     }
     let response =
         rmp_serde::to_vec(&event_parameters::ResponseDevices {

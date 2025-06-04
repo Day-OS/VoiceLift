@@ -12,7 +12,7 @@ fn _evt_tts(event: RpcEvent) -> Result<(), String> {
     // Verify if the event payload is of type RequestDevices
     let event: event_parameters::RequestTTS =
         rmp_serde::from_slice(event.payload()).map_err(|err| {
-            format!("Failed to deserialize request: {}", err)
+            format!("Failed to deserialize request: {err}")
         })?;
 
     manager
@@ -27,8 +27,7 @@ pub fn evt_tts(event: RpcEvent) -> RpcResult {
     let result = _evt_tts(event);
     if let Err(e) = result.clone() {
         log::error!(
-            "Failed to send Speak request to PipeWireTTS manager: {}",
-            e
+            "Failed to send Speak request to PipeWireTTS manager: {e}"
         );
     }
     let response =

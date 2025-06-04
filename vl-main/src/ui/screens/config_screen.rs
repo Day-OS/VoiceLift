@@ -1,6 +1,8 @@
 
+use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
 use bevy_egui::egui::Vec2;
+use busrt::ipc::Config;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
@@ -10,6 +12,7 @@ use tokio::runtime;
 use vl_global::audio_devices::AudioDevices;
 
 use crate::base_modules::device_module;
+use crate::base_modules::module_manager::ModuleManager;
 use crate::ui::screens::ScreenParameters;
 
 use super::Screen;
@@ -99,23 +102,7 @@ impl Screen for ConfigScreen {
                                     }
                                 }
 
-                                let devices = module_manager.available_devices.clone();
-                                egui::SidePanel::left("left_panel").show_inside(ui, |ui| {
-                                    egui::ScrollArea::vertical().show(ui, |ui| {
-                                        let comparison = AudioDevices::compare_lists(&devices, &config.devices);
-                                    
-                                    for device in comparison.selected_and_available.input_devices {
-                                        ui.label(device);
-                                    }
-                                    for device in comparison.not_selected_but_available.input_devices {
-                                        ui.label(device);
-                                    }
-                                    for device in comparison.selected_but_not_available.input_devices {
-                                        ui.label(device);
-                                    }
-                                    });
-                                    
-                                });
+                                self.show_devices_widget(ui, module_manager, config);
 
                                     
 
@@ -128,5 +115,36 @@ impl Screen for ConfigScreen {
             });
     });
         // module_manager
+    }
+}
+
+impl ConfigScreen{
+    pub fn show_devices_widget(
+        &self,
+        ui: &mut egui::Ui,
+        module_manager: ResMut<'_, ModuleManager>,
+        config: &mut vl_global::vl_config::VlConfig
+    ){
+        let devices = module_manager.available_devices.clone();
+        let comparison = AudioDevices::compare_lists(&devices, &config.devices);
+        for (device_type, status) in comparison.0{
+            let (id, name) = match device_type {
+                vl_global::audio_devices::AudioDeviceType::INPUT => ("input_panel", "Dispositivos de Entrada"),
+                vl_global::audio_devices::AudioDeviceType::OUTPUT => ("output_panel", "Dispositivos de Saída"),
+            };
+
+            egui::SidePanel::left(id).exact_width(100.).show_inside(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for (status, devices) in status{
+                        let mut devices = devices.clone();
+                        devices.sort();
+                        for device in devices {
+                            ui.label(device);
+                        }
+                    }
+
+                })
+            });
+        }
     }
 }

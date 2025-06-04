@@ -20,8 +20,7 @@ impl RpcHandlers for EventHandler {
     async fn handle_call(&self, event: RpcEvent) -> RpcResult {
         let parse_method = event.parse_method()?;
         let event_name = parse_method.to_owned();
-        log::info!("Handling Event: {}", event_name);
-        //METHOD_STOP_SPEAK
+        log::debug!("Handling Event: {}", event_name);
         let result = match parse_method {
             METHOD_GET_DEVICES => {
                 events::get_devices::evt_get_devices(event)

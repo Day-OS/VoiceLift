@@ -10,9 +10,9 @@ fn _evt_stop_tts(event: RpcEvent) -> Result<(), String> {
         .map_err(|_| "Failed to lock PIPERTTS_MANAGER")?;
 
     // Verify if the event payload is of type RequestDevices
-    let event: event_parameters::RequestStopTTS =
+    let _: event_parameters::RequestStopTTS =
         rmp_serde::from_slice(event.payload()).map_err(|err| {
-            format!("Failed to deserialize request: {}", err)
+            format!("Failed to deserialize request: {err}")
         })?;
 
     manager.stop_speak().map_err(|e| format!("{e}"))?;
