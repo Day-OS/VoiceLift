@@ -1,16 +1,21 @@
 
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
+use bevy_egui::egui::Color32;
+use bevy_egui::egui::RichText;
 use bevy_egui::egui::Vec2;
 use busrt::ipc::Config;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
+use egui_taffy::taffy::AlignItems;
+use egui_taffy::taffy::Style;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
 use tokio::runtime;
+use vl_global::audio_devices::AudioDeviceStatus;
 use vl_global::audio_devices::AudioDevices;
-
+use egui_extras::{Column, TableBuilder};
 use crate::base_modules::device_module;
 use crate::base_modules::module_manager::ModuleManager;
 use crate::ui::screens::ScreenParameters;
@@ -127,24 +132,126 @@ impl ConfigScreen{
     ){
         let devices = module_manager.available_devices.clone();
         let comparison = AudioDevices::compare_lists(&devices, &config.devices);
-        for (device_type, status) in comparison.0{
-            let (id, name) = match device_type {
+        tui(ui, ui.id().with("devices_panel")).reserve_available_space().style(Style{
+            flex_direction: taffy::FlexDirection::Row,
+            min_size: taffy::Size {
+                width: auto(),
+                height: auto(),
+            },
+            flex_grow: 1.,
+            justify_items: Some(taffy::AlignItems::Stretch),
+            align_items: Some(taffy::AlignItems::Stretch),
+            // gap: length(8.),
+            ..Default::default()
+        }).show(|tui|{
+            for (device_type, status) in comparison.0 {
+                let (id, name) = match device_type {
                 vl_global::audio_devices::AudioDeviceType::INPUT => ("input_panel", "Dispositivos de Entrada"),
                 vl_global::audio_devices::AudioDeviceType::OUTPUT => ("output_panel", "Dispositivos de Saída"),
-            };
+                };
 
-            egui::SidePanel::left(id).exact_width(100.).show_inside(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    for (status, devices) in status{
-                        let mut devices = devices.clone();
-                        devices.sort();
-                        for device in devices {
-                            ui.label(device);
-                        }
+                tui.style(
+                    Style { 
+                        min_size: taffy::Size {
+                            width: auto(),
+                            height: length(200.),
+                        },
+                        flex_grow: 1.,
+                        align_self: Some(AlignItems::Stretch),
+                        justify_self: Some(AlignItems::Stretch),
+                        ..Default::default()
                     }
+                ).add_with_border(|tui|{
+                    tui.ui(|ui|{
 
-                })
-            });
-        }
+                        let text_height = egui::TextStyle::Body
+                            .resolve(ui.style())
+                            .size
+                            .max(ui.spacing().interact_size.y*1.2);
+                        let available_height = ui.available_height();
+                        let table = TableBuilder::new(ui)
+                        // .auto_shrink([false, false])
+                        .max_scroll_height(f32::INFINITY)
+                        .min_scrolled_height(available_height)
+                        .vscroll(true)
+                        .striped(true)
+                        .resizable(false)
+                        .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                        .column(Column::auto())
+                        .column(Column::remainder().clip(false))
+                        .cell_layout(egui::Layout::left_to_right(egui::Align::Center));
+
+
+                        table.body(|mut body| {
+                            for (status, devices) in status {
+                                let mut devices = devices.clone();
+                                devices.sort();
+                                for device in devices {
+                                    body.row(text_height, |mut row| {
+                                        let mut activated: bool = status.is_selected();
+                                        
+                                        row.col(|ui| {
+                                            ui.checkbox(&mut activated, "");
+                                        });
+                                        row.col(|ui| {
+                                        let mut text = RichText::new(device);
+                                            if status == AudioDeviceStatus::SelectedButNotAvailable {
+                                                text = text.color(Color32::from_rgb(64, 64, 64));
+                                            }
+                                            ui.label(text);
+                                        });
+                                    });
+                                }
+                            }
+                        });
+                    })
+                });
+            }
+        });
+
+        //for (device_type, status) in comparison.0 {
+            // let (id, name) = match device_type {
+            //     vl_global::audio_devices::AudioDeviceType::INPUT => ("input_panel", "Dispositivos de Entrada"),
+            //     vl_global::audio_devices::AudioDeviceType::OUTPUT => ("output_panel", "Dispositivos de Saída"),
+            // };
+
+            // egui::SidePanel::left(id).exact_width(100.).show_inside(ui, |ui| {
+            //     egui::ScrollArea::vertical().show(ui, |ui| {
+            //         let mut table = TableBuilder::new(ui)
+            //             .striped(true)
+            //             .resizable(false)
+            //             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            //             .column(Column::auto())
+            //             .column(
+            //                 Column::remainder()
+            //                     .at_least(40.0)
+            //                     .clip(true)
+            //                     .resizable(true),
+            //             )
+            //             .column(Column::auto())
+            //             .column(Column::remainder())
+            //             .column(Column::remainder())
+            //             .min_scrolled_height(0.0)
+            //             .max_scroll_height(available_height);
+
+            //         table.body(|mut body| {
+            //             for (status, devices) in status {
+            //                 let mut devices = devices.clone();
+            //                 devices.sort();
+            //                 for device in devices {
+            //                     body.row(18., |mut row| {
+            //                         row.col(|ui| {
+            //                             ui.label(":3");
+            //                         });
+            //                         row.col(|ui| {
+            //                             ui.label(device);
+            //                         });
+            //                     });
+            //                 }
+            //             }
+            //         });
+            //     })
+            // });
+        //}
     }
 }

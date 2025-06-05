@@ -18,6 +18,16 @@ pub enum AudioDeviceStatus {
     SelectedButNotAvailable,
 }
 
+impl AudioDeviceStatus {
+    pub fn is_selected(&self) -> bool {
+        match self {
+            AudioDeviceStatus::SelectedAndAvailable
+            | AudioDeviceStatus::SelectedButNotAvailable => true,
+            AudioDeviceStatus::NotSelectedButAvailable => false,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Hash)]
 pub enum AudioDeviceType {
     INPUT,
