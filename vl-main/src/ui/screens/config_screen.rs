@@ -1,4 +1,5 @@
 
+use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
 use bevy_egui::egui::Color32;
@@ -16,8 +17,8 @@ use tokio::runtime;
 use vl_global::audio_devices::AudioDeviceStatus;
 use vl_global::audio_devices::AudioDevices;
 use egui_extras::{Column, TableBuilder};
-use crate::base_modules::device_module;
-use crate::base_modules::module_manager::ModuleManager;
+use crate::modules::module_event::ModuleEvent;
+use crate::modules::module_manager::ModuleManager;
 use crate::ui::screens::ScreenParameters;
 
 use super::Screen;
@@ -31,7 +32,7 @@ pub struct ConfigScreen {
 
 impl Screen for ConfigScreen {
     fn get_size(&self) -> Vec2 {
-        Vec2::new(800., 500.)
+        Vec2::new(800., 200.)
     }
     fn uses_keyboard(&self) -> bool {
         false
@@ -107,7 +108,7 @@ impl Screen for ConfigScreen {
                                     }
                                 }
 
-                                self.show_devices_widget(ui, module_manager, config);
+                                self.show_devices_widget(ui, module_manager, &mut module_event_w, config);
 
                                     
 
@@ -128,7 +129,8 @@ impl ConfigScreen{
         &self,
         ui: &mut egui::Ui,
         module_manager: ResMut<'_, ModuleManager>,
-        config: &mut vl_global::vl_config::VlConfig
+        module_event_w: &mut EventWriter<'_, ModuleEvent>,
+        config: &mut vl_global::vl_config::VlConfig,
     ){
         let devices = module_manager.available_devices.clone();
         let comparison = AudioDevices::compare_lists(&devices, &config.devices);
@@ -145,9 +147,9 @@ impl ConfigScreen{
             ..Default::default()
         }).show(|tui|{
             for (device_type, status) in comparison.0 {
-                let (id, name) = match device_type {
-                vl_global::audio_devices::AudioDeviceType::INPUT => ("input_panel", "Dispositivos de Entrada"),
-                vl_global::audio_devices::AudioDeviceType::OUTPUT => ("output_panel", "Dispositivos de Saída"),
+                let str_device_type = match device_type {
+                    vl_global::audio_devices::AudioDeviceType::INPUT => "Dispositivos de Entrada",
+                    vl_global::audio_devices::AudioDeviceType::OUTPUT => "Dispositivos de Saída",
                 };
 
                 tui.style(
@@ -163,7 +165,7 @@ impl ConfigScreen{
                     }
                 ).add_with_border(|tui|{
                     tui.ui(|ui|{
-
+                        ui.heading(str_device_type.to_string());
                         let text_height = egui::TextStyle::Body
                             .resolve(ui.style())
                             .size
@@ -188,10 +190,13 @@ impl ConfigScreen{
                                 devices.sort();
                                 for device in devices {
                                     body.row(text_height, |mut row| {
-                                        let mut activated: bool = status.is_selected();
+                                        let mut selected: bool = status.is_selected();
                                         
                                         row.col(|ui| {
-                                            ui.checkbox(&mut activated, "");
+                                            let checkbox = ui.checkbox(&mut selected, "");
+                                            if checkbox.changed(){
+                                                module_event_w.write(ModuleEvent::UpdateDeviceSelection { selected, device_type: device_type.clone(), name: device.clone() });
+                                            }
                                         });
                                         row.col(|ui| {
                                         let mut text = RichText::new(device);

@@ -1,6 +1,10 @@
 use core::f32;
 use std::sync::Arc;
 
+use crate::modules::base::tts_module::TtsModule;
+use crate::modules::module_manager::ModuleManager;
+use crate::ui::screens::ScreenParameters;
+use crate::ui::virtual_keyboard::Keyboard;
 use async_lock::RwLock;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
@@ -16,11 +20,6 @@ use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
 use vl_global::vl_config::ConfigManager;
-
-use crate::base_modules::module_manager::ModuleManager;
-use crate::base_modules::tts_module::TtsModule;
-use crate::ui::screens::ScreenParameters;
-use crate::ui::virtual_keyboard::Keyboard;
 
 use super::Screen;
 use super::ScreenEvent;

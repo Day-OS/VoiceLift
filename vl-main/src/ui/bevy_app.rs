@@ -2,14 +2,16 @@ use std::sync::Arc;
 
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
-use crate::base_modules::module_manager::ModuleManager;
-use crate::base_modules::{
-    initialize_module_manager, module_manager::ModuleManagerEvent,
+use crate::{
+    modules::{
+        module_event::{
+            ModuleEvent, initialize_module_manager,
+            module_manager_event_handler, module_manager_ticker,
+        },
+        module_manager::ModuleManager,
+    },
+    ui::screens::ScreenParameters,
 };
-use crate::base_modules::{
-    module_manager_event_handler, module_manager_ticker,
-};
-use crate::ui::screens::ScreenParameters;
 
 use async_lock::RwLock;
 use bevy::{
@@ -46,7 +48,7 @@ pub fn run() {
     app.insert_resource(screen_manager);
     app.insert_resource(ModuleManager::new());
     app.add_event::<ScreenEvent>();
-    app.add_event::<ModuleManagerEvent>();
+    app.add_event::<ModuleEvent>();
     app.add_systems(Startup, initialize_module_manager);
     app.add_systems(
         Update,
@@ -108,7 +110,7 @@ fn egui_screen(
     mut screen: ResMut<ScreenManager>,
     mut window: Single<&mut Window>,
     screen_event_w: EventWriter<ScreenEvent>,
-    module_event_w: EventWriter<ModuleManagerEvent>,
+    module_event_w: EventWriter<ModuleEvent>,
     runtime: ResMut<TokioTasksRuntime>,
 ) {
     // window.mode =

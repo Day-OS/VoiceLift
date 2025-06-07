@@ -1,7 +1,7 @@
 use busrt::async_trait;
 use vl_global::audio_devices::AudioDevices;
 
-use super::IModule;
+use crate::modules::base::i_module::IModule;
 
 fn is_capable_of_linking_error(capacity: bool) -> String {
     if capacity {

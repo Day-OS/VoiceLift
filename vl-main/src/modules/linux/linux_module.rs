@@ -1,5 +1,3 @@
-use crate::base_modules::tts_module::TtsModule;
-use crate::base_modules::{IModule, device_module::DeviceModule};
 use async_lock::RwLock;
 use bevy::image::Volume;
 use busrt::ipc::{Client, Config};
@@ -16,6 +14,10 @@ use vl_linux_backend::event_parameters::{
     self, METHOD_GET_DEVICES, METHOD_LINK_DEVICES, METHOD_SPEAK,
     METHOD_STOP_SPEAK, METHOD_UNLINK_DEVICES,
 };
+
+use crate::modules::base::device_module::DeviceModule;
+use crate::modules::base::i_module::IModule;
+use crate::modules::base::tts_module::TtsModule;
 const BROKER_NAME: &str = ".broker";
 
 #[derive(Error, Debug)]

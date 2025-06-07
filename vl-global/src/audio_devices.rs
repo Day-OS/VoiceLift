@@ -28,7 +28,7 @@ impl AudioDeviceStatus {
     }
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub enum AudioDeviceType {
     INPUT,
     OUTPUT,

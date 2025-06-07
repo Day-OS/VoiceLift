@@ -4,7 +4,7 @@ use async_lock::RwLock;
 use busrt::async_trait;
 use vl_global::vl_config::ConfigManager;
 
-use super::IModule;
+use crate::modules::base::i_module::IModule;
 
 pub const MODULE_TYPE: &str = "TTS Module";
 

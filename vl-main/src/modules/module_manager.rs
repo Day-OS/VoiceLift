@@ -1,11 +1,11 @@
-use super::device_module::DeviceModule;
-use super::tts_module::TtsModule;
-use crate::base_modules::IModule;
-use crate::base_modules::Module;
+use super::base::device_module::DeviceModule;
+use super::base::tts_module::TtsModule;
 #[cfg(target_os = "linux")]
-use crate::desktop::linux::linux_module;
+use super::linux::linux_module;
+use crate::modules::base::i_module::IModule;
+use crate::modules::base::module::Module;
+use crate::modules::module_event::ModuleEvent;
 use async_lock::RwLock;
-use bevy::ecs::event::Event;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::resource::Resource;
 use bevy::ecs::system::ResMut;
@@ -22,11 +22,6 @@ use vl_global::audio_devices::AudioDevices;
 use vl_global::vl_config::ConfigError;
 use vl_global::vl_config::ConfigManager;
 use vl_global::vl_config::VlConfig;
-
-#[derive(Event)]
-pub enum ModuleManagerEvent {
-    LoadModule(String),
-}
 
 #[derive(Resource)]
 pub struct ModuleManager {
@@ -167,7 +162,7 @@ impl ModuleManager {
         &mut self,
         ui: &mut egui::Ui,
         config: &mut VlConfig,
-        module_event_w: &mut EventWriter<ModuleManagerEvent>,
+        module_event_w: &mut EventWriter<ModuleEvent>,
         tokio: &mut ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
     ) {
         let runtime = tokio.runtime();

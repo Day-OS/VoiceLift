@@ -17,8 +17,8 @@ use futures::executor::{self, block_on};
 
 use bevy_egui::egui::Vec2;
 
-use crate::base_modules::module_manager::{
-    ModuleManager, ModuleManagerEvent,
+use crate::modules::{
+    module_event::ModuleEvent, module_manager::ModuleManager,
 };
 
 use super::virtual_keyboard::Keyboard;
@@ -26,7 +26,7 @@ use super::virtual_keyboard::Keyboard;
 pub struct ScreenParameters<'w> {
     pub module_manager: ResMut<'w, ModuleManager>,
     pub screen_event_w: EventWriter<'w, ScreenEvent>,
-    pub module_event_w: EventWriter<'w, ModuleManagerEvent>,
+    pub module_event_w: EventWriter<'w, ModuleEvent>,
     pub ui: &'w mut egui::Ui,
     pub ctx: &'w mut egui::Context,
     pub work_area: Vec2,
