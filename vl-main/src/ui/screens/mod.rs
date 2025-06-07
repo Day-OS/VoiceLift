@@ -114,10 +114,6 @@ impl ScreenManager {
         screens.insert(screen_name.to_owned(), target.clone());
     }
 
-    fn get(&self) -> Arc<RwLock<dyn Screen>> {
-        self.selected_screen.clone()
-    }
-
     pub fn register_systems(&mut self, app: &mut bevy::app::App) {
         app.add_systems(Update, keyboard_input_event);
         app.add_systems(Update, keyboard_output_event);

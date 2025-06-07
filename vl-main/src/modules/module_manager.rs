@@ -65,6 +65,23 @@ impl ModuleManager {
             available_devices: AudioDevices::default(),
         }
     }
+    pub fn register_app_configs(&mut self, app: &mut bevy::app::App) {
+        #[cfg(target_os = "linux")]
+        {
+            use bevy::app::Update;
+
+            use crate::modules::linux::event_handlers::handler::{
+                LinuxModuleEventHandler,
+                linux_module_event_handler_update,
+            };
+            app.insert_resource(LinuxModuleEventHandler::new());
+            app.add_systems(
+                Update,
+                linux_module_event_handler_update,
+            );
+        }
+    }
+
     pub async fn initialize(&mut self) -> &mut Self {
         #[cfg(target_os = "linux")]
         {

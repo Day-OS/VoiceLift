@@ -57,9 +57,9 @@ pub fn module_manager_ticker(
     mut module_manager: ResMut<ModuleManager>,
     time: Res<Time>,
     tokio: ResMut<TokioTasksRuntime>,
-    mut screen: ResMut<ScreenManager>,
+    screen: ResMut<ScreenManager>,
 ) {
-    let mut timer = &mut module_manager._timer;
+    let timer = &mut module_manager._timer;
     timer.tick(time.delta());
 
     if timer.finished() {

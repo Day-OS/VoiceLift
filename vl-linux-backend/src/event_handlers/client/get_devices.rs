@@ -1,15 +1,15 @@
-use crate::{
-    event_parameters::{self},
-    PIPEWIRE_MANAGER,
-};
+use crate::PIPEWIRE_MANAGER;
 use busrt::rpc::{RpcEvent, RpcResult};
 use easy_pw::port::PortDirection;
 use vl_global::audio_devices::AudioDevices;
 
+use events::client::{RequestDevices, ResponseDevices};
+use vl_linux_backend::events;
+
 fn _evt_get_devices(event: RpcEvent) -> Result<AudioDevices, String> {
     // Verify if the event payload is of type RequestDevices
-    let _: event_parameters::RequestDevices =
-        rmp_serde::from_slice(event.payload()).map_err(|err| {
+    let _: RequestDevices = rmp_serde::from_slice(event.payload())
+        .map_err(|err| {
             format!("Failed to deserialize request: {err}")
         })?;
 
@@ -60,10 +60,7 @@ pub fn evt_get_devices(event: RpcEvent) -> RpcResult {
     if let Err(e) = result.clone() {
         log::error!("Failed to get devices: {e}");
     }
-    let response =
-        rmp_serde::to_vec(&event_parameters::ResponseDevices {
-            result,
-        })?;
+    let response = rmp_serde::to_vec(&ResponseDevices { result })?;
 
     Ok(Some(response))
 }

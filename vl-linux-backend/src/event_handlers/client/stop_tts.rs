@@ -1,6 +1,7 @@
-use crate::event_parameters::{self};
 use crate::PIPERTTS_MANAGER;
 use busrt::rpc::{RpcEvent, RpcResult};
+use events::client::{RequestStopTTS, ResponseStopTTS};
+use vl_linux_backend::events;
 
 fn _evt_stop_tts(event: RpcEvent) -> Result<(), String> {
     let manager = PIPERTTS_MANAGER
@@ -10,8 +11,8 @@ fn _evt_stop_tts(event: RpcEvent) -> Result<(), String> {
         .map_err(|_| "Failed to lock PIPERTTS_MANAGER")?;
 
     // Verify if the event payload is of type RequestDevices
-    let _: event_parameters::RequestStopTTS =
-        rmp_serde::from_slice(event.payload()).map_err(|err| {
+    let _: RequestStopTTS = rmp_serde::from_slice(event.payload())
+        .map_err(|err| {
             format!("Failed to deserialize request: {err}")
         })?;
 
@@ -28,10 +29,7 @@ pub fn evt_stop_tts(event: RpcEvent) -> RpcResult {
             "Failed to send Speak request to PipeWireTTS manager: {e}",
         );
     }
-    let response =
-        rmp_serde::to_vec(&event_parameters::ResponseStopTTS {
-            result,
-        })?;
+    let response = rmp_serde::to_vec(&ResponseStopTTS { result })?;
 
     Ok(Some(response))
 }

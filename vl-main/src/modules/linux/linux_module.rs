@@ -1,24 +1,11 @@
-use async_lock::RwLock;
-use bevy::image::Volume;
 use busrt::ipc::{Client, Config};
-use busrt::rpc::{Rpc, RpcClient};
-use busrt::{QoS, async_trait};
+use busrt::rpc::RpcClient;
 use futures::future::BoxFuture;
 use std::fmt::Debug;
-use std::sync::Arc;
 use thiserror::Error;
-use vl_global::audio_devices::AudioDevices;
-use vl_global::vl_config::{ConfigError, ConfigManager};
-use vl_linux_backend::error::LinuxBackendError;
-use vl_linux_backend::event_parameters::{
-    self, METHOD_GET_DEVICES, METHOD_LINK_DEVICES, METHOD_SPEAK,
-    METHOD_STOP_SPEAK, METHOD_UNLINK_DEVICES,
-};
 
-use crate::modules::base::device_module::DeviceModule;
 use crate::modules::base::i_module::IModule;
-use crate::modules::base::tts_module::TtsModule;
-const BROKER_NAME: &str = ".broker";
+use crate::modules::linux::event_handlers;
 
 #[derive(Error, Debug)]
 enum LinuxModuleError {
@@ -40,7 +27,7 @@ enum LinuxModuleError {
 
 /// Resposible for linking devices in Linux with the help of a backend (vl-linux-backend)
 pub struct LinuxModule {
-    _client: Option<RpcClient>,
+    pub(super) _client: Option<RpcClient>,
 }
 
 impl LinuxModule {
@@ -53,7 +40,10 @@ impl LinuxModule {
             LinuxModuleError::FailedToConnectIntoSocket(e.to_string())
         })?;
         // create RPC with no handlers
-        Ok(RpcClient::new0(client))
+        let handlers =
+            event_handlers::handler::LinuxModuleEventHandler::new();
+
+        Ok(RpcClient::new(client, handlers))
     }
     pub async fn new() -> Self {
         Self { _client: None }
@@ -74,213 +64,11 @@ impl IModule for LinuxModule {
     }
 }
 
-#[async_trait]
-impl DeviceModule for LinuxModule {
-    async fn get_devices(&self) -> anyhow::Result<AudioDevices> {
-        // call the method with no confirm
-        if let Some(client) = &self._client {
-            let result = client
-                .call(
-                    BROKER_NAME,
-                    METHOD_GET_DEVICES,
-                    rmp_serde::to_vec_named(
-                        &event_parameters::RequestDevices {},
-                    )?
-                    .into(),
-                    QoS::Processed,
-                )
-                .await
-                .map_err(|e| {
-                    let empty_str = "empty_data";
-                    let data =
-                        e.data().unwrap_or(empty_str.as_bytes());
-                    String::from_utf8(data.to_vec())
-                })
-                .unwrap();
-
-            let devices: event_parameters::ResponseDevices =
-                rmp_serde::from_slice(result.payload())?;
-
-            return Ok(devices.result.map_err(|e| {
-                LinuxModuleError::FailedToGetDevices(e)
-            })?);
-        }
-        Err(LinuxModuleError::BackendServiceNotStarted.into())
-    }
-
-    fn is_capable_of_linking(&self) -> bool {
-        true
-    }
-
-    async fn link_device(
-        &self,
-        input_device: String,
-    ) -> anyhow::Result<()> {
-        if let Some(client) = &self._client {
-            let result = client
-                .call(
-                    BROKER_NAME,
-                    METHOD_LINK_DEVICES,
-                    rmp_serde::to_vec_named(
-                        &event_parameters::RequestDeviceLinkage {
-                            target_device: input_device,
-                        },
-                    )?
-                    .into(),
-                    QoS::Processed,
-                )
-                .await
-                .map_err(|e| {
-                    let empty_str = "empty_data";
-                    let data =
-                        e.data().unwrap_or(empty_str.as_bytes());
-                    String::from_utf8(data.to_vec())
-                })
-                .unwrap();
-
-            let response: event_parameters::ResponseDeviceLinkage =
-                rmp_serde::from_slice(result.payload())?;
-            // Throws error if the result is not successful
-            response
-                .result
-                .map_err(LinuxModuleError::FailedToLink)?;
-            Ok(())
-        } else {
-            Err(LinuxModuleError::BackendServiceNotStarted.into())
-        }
-    }
-
-    async fn unlink_device(
-        &self,
-        input_device: String,
-    ) -> anyhow::Result<()> {
-        // call the method with no confirm
-        if let Some(client) = &self._client {
-            let result = client
-                .call(
-                    BROKER_NAME,
-                    METHOD_UNLINK_DEVICES,
-                    rmp_serde::to_vec_named(
-                        &event_parameters::RequestDeviceUnLinkage {
-                            target_device: input_device,
-                        },
-                    )?
-                    .into(),
-                    QoS::Processed,
-                )
-                .await
-                .map_err(|e| {
-                    let empty_str = "empty_data";
-                    let data =
-                        e.data().unwrap_or(empty_str.as_bytes());
-                    String::from_utf8(data.to_vec())
-                })
-                .unwrap();
-
-            let response: event_parameters::ResponseDeviceUnLinkage =
-                rmp_serde::from_slice(result.payload())?;
-            // Throws error if the result is not successful
-            response
-                .result
-                .map_err(LinuxModuleError::FailedToUnlink)?;
-            Ok(())
-        } else {
-            Err(LinuxModuleError::BackendServiceNotStarted.into())
-        }
-    }
-}
-
 impl Debug for LinuxModule {
     fn fmt(
         &self,
         f: &mut std::fmt::Formatter<'_>,
     ) -> std::fmt::Result {
         f.debug_struct("LinuxDeviceManager").finish()
-    }
-}
-
-#[async_trait]
-impl TtsModule for LinuxModule {
-    async fn speak(
-        &self,
-        text: String,
-        config: Arc<RwLock<ConfigManager>>,
-    ) -> anyhow::Result<()> {
-        let config = config.read().await;
-        let config = config.read()?;
-        if config.linux.is_none() {
-            return Err(
-                LinuxBackendError::ConfigSectionNotFound.into()
-            );
-        }
-        let linux_config = config.linux.unwrap();
-
-        if let Some(client) = &self._client {
-            let result = client
-                .call(
-                    BROKER_NAME,
-                    METHOD_SPEAK,
-                    rmp_serde::to_vec_named(
-                        &event_parameters::RequestTTS {
-                            phrase: text,
-                            pitch: linux_config.pitch,
-                            volume: linux_config.volume,
-                        },
-                    )?
-                    .into(),
-                    QoS::Processed,
-                )
-                .await
-                .map_err(|e| {
-                    let empty_str = "empty_data";
-                    let data =
-                        e.data().unwrap_or(empty_str.as_bytes());
-                    String::from_utf8(data.to_vec())
-                })
-                .unwrap();
-
-            let response: event_parameters::ResponseTTS =
-                rmp_serde::from_slice(result.payload())?;
-            // Throws error if the result is not successful
-            response
-                .result
-                .map_err(LinuxModuleError::FailedToSpeak)?;
-            Ok(())
-        } else {
-            Err(LinuxModuleError::BackendServiceNotStarted.into())
-        }
-    }
-
-    async fn stop_speaking(&self) -> anyhow::Result<()> {
-        if let Some(client) = &self._client {
-            let result = client
-                .call(
-                    BROKER_NAME,
-                    METHOD_STOP_SPEAK,
-                    rmp_serde::to_vec_named(
-                        &event_parameters::RequestStopTTS {},
-                    )?
-                    .into(),
-                    QoS::Processed,
-                )
-                .await
-                .map_err(|e| {
-                    let empty_str = "empty_data";
-                    let data =
-                        e.data().unwrap_or(empty_str.as_bytes());
-                    String::from_utf8(data.to_vec())
-                })
-                .unwrap();
-
-            let response: event_parameters::ResponseStopTTS =
-                rmp_serde::from_slice(result.payload())?;
-            // Throws error if the result is not successful
-            response
-                .result
-                .map_err(LinuxModuleError::FailedToSpeak)?;
-            Ok(())
-        } else {
-            Err(LinuxModuleError::BackendServiceNotStarted.into())
-        }
     }
 }

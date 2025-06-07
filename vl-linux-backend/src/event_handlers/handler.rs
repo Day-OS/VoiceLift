@@ -1,15 +1,15 @@
-use crate::event_parameters::{
-    METHOD_GET_DEVICES, METHOD_LINK_DEVICES, METHOD_SPEAK,
-    METHOD_UNLINK_DEVICES,
-};
-use crate::events;
+use crate::event_handlers;
 use busrt::rpc::RpcError;
 use busrt::Frame;
 use busrt::{
     async_trait,
     rpc::{RpcEvent, RpcHandlers, RpcResult},
 };
-use vl_linux_backend::event_parameters::METHOD_STOP_SPEAK;
+use events::client::{
+    METHOD_GET_DEVICES, METHOD_LINK_DEVICES, METHOD_SPEAK,
+    METHOD_STOP_SPEAK, METHOD_UNLINK_DEVICES,
+};
+use vl_linux_backend::events;
 
 pub(crate) struct EventHandler {}
 
@@ -23,17 +23,19 @@ impl RpcHandlers for EventHandler {
         log::debug!("Handling Event: {}", event_name);
         let result = match parse_method {
             METHOD_GET_DEVICES => {
-                events::get_devices::evt_get_devices(event)
+                event_handlers::client::get_devices::evt_get_devices(event)
             }
             METHOD_LINK_DEVICES => {
-                events::link_devices::evt_link_devices(event)
+                event_handlers::client::link_devices::evt_link_devices(event)
             }
             METHOD_UNLINK_DEVICES => {
-                events::unlink_devices::evt_unlink_devices(event)
+                event_handlers::client::unlink_devices::evt_unlink_devices(
+                    event,
+                )
             }
-            METHOD_SPEAK => events::tts::evt_tts(event),
+            METHOD_SPEAK => event_handlers::client::tts::evt_tts(event),
             METHOD_STOP_SPEAK => {
-                events::stop_tts::evt_stop_tts(event)
+                event_handlers::client::stop_tts::evt_stop_tts(event)
             }
             _ => Err(RpcError::method(Some(
                 "Event not implemented".as_bytes().to_vec(),

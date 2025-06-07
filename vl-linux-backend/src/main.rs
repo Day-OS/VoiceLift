@@ -15,9 +15,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 use vl_global::vl_config::ConfigManager;
 mod error;
-mod event_handler;
-mod event_parameters;
-mod events;
+mod event_handlers;
 use crate::error::LinuxBackendError;
 
 mod piper;
@@ -32,6 +30,8 @@ static PIPERTTS_MANAGER: OnceLock<Arc<RwLock<PiperTTSManager>>> =
 #[cfg(target_os = "linux")]
 #[tokio::main]
 async fn main() -> Result<(), LinuxBackendError> {
+    use crate::event_handlers::handler;
+
     CombinedLogger::init(vec![TermLogger::new(
         LevelFilter::Debug,
         ConfigBuilder::new()
@@ -86,7 +86,7 @@ async fn main() -> Result<(), LinuxBackendError> {
     core_client.subscribe("#", QoS::No).await.unwrap();
 
     // create handlers object
-    let handlers = event_handler::EventHandler {};
+    let handlers = handler::EventHandler {};
     // create RPC
     let crpc = RpcClient::new(core_client, handlers);
 

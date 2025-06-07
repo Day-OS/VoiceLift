@@ -8,7 +8,7 @@ use crate::{
             ModuleEvent, initialize_module_manager,
             module_manager_event_handler, module_manager_ticker,
         },
-        module_manager::ModuleManager,
+        module_manager::{self, ModuleManager},
     },
     ui::screens::ScreenParameters,
 };
@@ -40,13 +40,15 @@ pub fn run() {
     let mut app: App = App::new();
     app.insert_resource(ClearColor(Color::NONE));
     let main_screen = MainScreen::default();
+    let mut module_manager = ModuleManager::new();
+    module_manager.register_app_configs(&mut app);
+    app.insert_resource(module_manager);
     let mut screen_manager =
         ScreenManager::new(Arc::new(RwLock::new(main_screen)));
     screen_manager
         .add_screen(Arc::new(RwLock::new(ConfigScreen::default())));
     screen_manager.register_systems(&mut app);
     app.insert_resource(screen_manager);
-    app.insert_resource(ModuleManager::new());
     app.add_event::<ScreenEvent>();
     app.add_event::<ModuleEvent>();
     app.add_systems(Startup, initialize_module_manager);
