@@ -82,6 +82,14 @@ impl ModuleManager {
         }
     }
 
+    pub fn reload_config(&mut self) {
+        let app_config = Arc::new(RwLock::new(
+            ConfigManager::new()
+                .expect("Config should be initialized"),
+        ));
+        self.config = app_config;
+    }
+
     pub async fn initialize(&mut self) -> &mut Self {
         #[cfg(target_os = "linux")]
         {

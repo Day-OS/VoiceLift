@@ -16,6 +16,7 @@ use vl_global::audio_devices::AudioDeviceStatus;
 use vl_global::audio_devices::AudioDevices;
 use egui_extras::{Column, TableBuilder};
 use crate::modules::module_event::ModuleEvent;
+use crate::modules::module_event::UpdateDeviceSelectionEvent;
 use crate::modules::module_manager::ModuleManager;
 use crate::ui::screens::ScreenParameters;
 
@@ -193,7 +194,9 @@ impl ConfigScreen{
                                         row.col(|ui| {
                                             let checkbox = ui.checkbox(&mut selected, "");
                                             if checkbox.changed(){
-                                                module_event_w.write(ModuleEvent::UpdateDeviceSelection { selected, device_type: device_type.clone(), name: device.clone() });
+                                                module_event_w.write(ModuleEvent::UpdateDeviceSelection(UpdateDeviceSelectionEvent{
+                                                     selected, device_type: device_type.clone(), name: device.clone() 
+                                                }));
                                             }
                                         });
                                         row.col(|ui| {

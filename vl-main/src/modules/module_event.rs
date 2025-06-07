@@ -1,8 +1,10 @@
+use anyhow::Ok;
 use bevy::{
     ecs::{
         event::{Event, EventReader},
         system::{Res, ResMut},
     },
+    log::tracing::event,
     time::Time,
 };
 use bevy_tokio_tasks::TokioTasksRuntime;
@@ -18,11 +20,14 @@ use crate::{
 #[derive(Event, Debug)]
 pub enum ModuleEvent {
     LoadModule(String),
-    UpdateDeviceSelection {
-        selected: bool,
-        device_type: AudioDeviceType,
-        name: String,
-    },
+    UpdateDeviceSelection(UpdateDeviceSelectionEvent),
+}
+
+#[derive(Debug)]
+pub struct UpdateDeviceSelectionEvent {
+    pub selected: bool,
+    pub device_type: AudioDeviceType,
+    pub name: String,
 }
 
 pub fn initialize_module_manager(
@@ -46,10 +51,25 @@ pub fn module_manager_event_handler(
     mut event_r: EventReader<ModuleEvent>,
     runtime: ResMut<TokioTasksRuntime>,
 ) {
-    let runtime = runtime.runtime();
-    for event in event_r.read() {
-        log::info!("{event:?}")
+    if event_r.is_empty() {
+        return;
     }
+    let runtime = runtime.runtime();
+    runtime.block_on(async {
+        for event in event_r.read() {
+            match event {
+                ModuleEvent::LoadModule(_) => {}
+                ModuleEvent::UpdateDeviceSelection(e) => {
+                    handler_update_device_selection_event(
+                        &mut module_manager,
+                        e,
+                    )
+                    .await;
+                }
+            }
+            log::info!("{event:?}")
+        }
+    });
 }
 
 //; System for activating repeating tasks in the background
@@ -97,4 +117,31 @@ async fn get_available_devices(
     let devices = devices.unwrap();
 
     module_manager.available_devices = devices;
+}
+
+pub async fn handler_update_device_selection_event(
+    module_manager: &mut ResMut<'_, ModuleManager>,
+    event: &UpdateDeviceSelectionEvent,
+) {
+    let config_arc = module_manager.config.clone();
+    let mut config = config_arc.write().await;
+    config.modify_and_save(|config| {
+        let devices = &mut config.devices;
+        let device_list = match event.device_type {
+            AudioDeviceType::INPUT => &mut devices.input_devices,
+            AudioDeviceType::OUTPUT => &mut devices.output_devices,
+        };
+        if event.selected {
+            device_list.push(event.name.clone());
+        } else {
+            if let Some(index) = device_list
+                .iter()
+                .position(|name| name.clone() == event.name)
+            {
+                device_list.remove(index);
+            }
+        }
+        Ok(())
+    });
+    module_manager.reload_config();
 }
