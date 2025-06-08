@@ -1,12 +1,17 @@
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use anyhow::Ok;
+use async_lock::RwLock;
+use bevy::audio;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
 use bevy_egui::egui::Color32;
 use bevy_egui::egui::RichText;
 use bevy_egui::egui::Vec2;
+use egui_file_dialog::FileDialog;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
@@ -14,6 +19,7 @@ use egui_taffy::taffy::AlignItems;
 use egui_taffy::taffy::Style;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
+use indexmap::IndexMap;
 use vl_global::audio_devices::AudioDeviceStatus;
 use vl_global::audio_devices::AudioDevices;
 use egui_extras::{Column, TableBuilder};
@@ -21,6 +27,7 @@ use vl_global::vl_config::VlConfig;
 use crate::events::module_event::ModuleEvent;
 use crate::events::module_event::UpdateDeviceSelectionEvent;
 use crate::modules::base::i_module::IModule;
+use crate::modules::base::module::Module;
 use crate::modules::module_manager::ModuleManager;
 use crate::ui::screens::ScreenParameters;
 
@@ -43,7 +50,7 @@ impl Screen for ConfigScreen {
     fn draw(
         &mut self,
         params: ScreenParameters,
-    ) {
+    ) -> std::result::Result<(), anyhow::Error> {
         let mut module_manager = params.module_manager;
         let mut screen_event_w = params.screen_event_w;
         let mut module_event_w = params.module_event_w;
@@ -81,7 +88,6 @@ impl Screen for ConfigScreen {
                     });
                 }
                 let file_dialog = &mut module_manager.file_dialog.clone();
-                let mut file_dialog = executor::block_on(file_dialog.write());
                 let config_clone = &mut module_manager.config.clone();
                 let mut config = executor::block_on(config_clone.write());
                 config
@@ -89,41 +95,19 @@ impl Screen for ConfigScreen {
                         |config: &mut vl_global::vl_config::VlConfig| {
                             ui.heading("Configurações");
 
-                            show_configs(&mut module_manager, ui, config, &mut module_event_w, &mut tokio);
-
-                            if let Some(linux) = &mut config.linux {
-                                ui.heading("Configurações do Linux Module");
-                                ui.label(format!("Piper TTS Model Path: {}", linux.piper_tts_model));
-                                if ui.button("Pick file").clicked() {
-                                    // For some reason it is private?
-                                    // if !linux.piper_tts_model.is_empty(){
-                                    //     let path = Path::new(&linux.piper_tts_model);
-                                    //     if path.exists(){
-                                    //         file_dialog.initial_directory(path.to_path_buf());
-                                    //     }
-                                    // }
-                                    file_dialog.pick_file();
-                                }
-                                if let Some(path) = file_dialog.take_picked() {
-                                    let path = path.to_path_buf();
-                                    if linux.validate_piper_tts_model(&path){
-                                        linux.piper_tts_model = path.display().to_string();
-                                    }
-                                }
-
-                                self.show_devices_widget(ui, module_manager, &mut module_event_w, config);
-
-                                    
-
-                                //linux.piper_tts_model;
-                            }
+                            self.show_modules_widget(&mut module_manager, ui, config, &mut module_event_w, &mut tokio);
+                            
+                            self.show_linux_tts_widget(ui, file_dialog.clone(), config);
+                            
+                            self.show_devices_widget(ui, &mut module_manager, &mut module_event_w, config);
                             Ok(())
                         },
                     ).unwrap();
-                file_dialog.update(_ctx);
+                let mut file_dialog_guard = executor::block_on(file_dialog.write());
+                file_dialog_guard.update(_ctx);
             });
-    });
-        // module_manager
+        });
+        Ok(())
     }
 }
 
@@ -131,7 +115,7 @@ impl ConfigScreen{
     pub fn show_devices_widget(
         &self,
         ui: &mut egui::Ui,
-        module_manager: ResMut<'_, ModuleManager>,
+        module_manager: &mut ResMut<'_, ModuleManager>,
         module_event_w: &mut EventWriter<'_, ModuleEvent>,
         config: &mut vl_global::vl_config::VlConfig,
     ){
@@ -219,10 +203,41 @@ impl ConfigScreen{
             }
         });
     }
-}
+
+    pub fn show_linux_tts_widget(
+        &self,
+        ui: &mut egui::Ui,
+        file_dialog: Arc<RwLock<FileDialog>>,
+        config: &mut vl_global::vl_config::VlConfig,
+    ){
+        let mut file_dialog_guard = executor::block_on(file_dialog.write());
+
+        if let Some(linux) = &mut config.linux {
+            ui.heading("Configurações do Linux Module");
+            ui.label(format!("Piper TTS Model Path: {}", linux.piper_tts_model));
+            if ui.button("Pick file").clicked() {
+                // For some reason it is private?
+                // if !linux.piper_tts_model.is_empty(){
+                //     let path = Path::new(&linux.piper_tts_model);
+                //     if path.exists(){
+                //         file_dialog.initial_directory(path.to_path_buf());
+                //     }
+                // }
+                file_dialog_guard.pick_file();
+            }
+            if let Some(path) = file_dialog_guard.take_picked() {
+                let path = path.to_path_buf();
+                if linux.validate_piper_tts_model(&path){
+                    linux.piper_tts_model = path.display().to_string();
+                }
+            }
+        }
+    }
 
 
-    pub fn show_configs(
+    /// Draw module configs, with module selection and initialization options  
+    pub fn show_modules_widget(
+        &mut self,
         module_manager: &mut ResMut<ModuleManager>,
         ui: &mut egui::Ui,
         config: &mut VlConfig,
@@ -230,69 +245,105 @@ impl ConfigScreen{
         tokio: &mut ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
     ) {
         let runtime = tokio.runtime();
-        // Organize modules in a hashmap.
-        let mut modules: HashMap<String, Vec<String>> =
-            HashMap::new();
+        
+        runtime.block_on(async {
+            let mut tts: Vec<Module> = vec![];
+            let mut audio_device: Vec<Module> = vec![];
 
-        for (key, module) in &module_manager.modules {
-            let mut list = modules.get_mut(key);
-            if list.is_none() {
-                modules.insert(key.clone(), vec![]);
-                list = modules.get_mut(key);
-            }
-            let list = list.unwrap();
-            list.push(module.get_screen_name().to_string());
-        }
-
-        // Draw the options
-        for (module_type, alternatives) in modules {
-            let selected_module =
-                config.selected_modules.get(&module_type);
-            if selected_module.is_none() {
-                continue;
-            }
-            let mut selected_module = selected_module.unwrap();
-
-            ui.label(format!(
-                "{module_type} Selecionado: {selected_module}"
-            ));
-            for linker_option in &alternatives {
-                let text = linker_option.clone();
-                ui.radio_value(
-                    &mut selected_module,
-                    linker_option,
-                    text,
-                );
-            }
-            // Update the config with the selected linker
-            config
-                .selected_modules
-                .insert(module_type, selected_module.to_string());
-        }
-
-        // Add start modules buttons
-        if let Some(module) = module_manager.selected_tts_module.clone() {
-            let mut module = executor::block_on(module.write());
-            let module_type = module.get_module_type();
-            if ui.button(format!("Iniciar {module_type}")).clicked() {
-                if let Err(e) = runtime.block_on(module.start()) {
-                    module_manager.error(format!(
-                        "Failed to start {module_type}!",
-                    ));
-                    log::error!("{e}");
+            for module in &mut module_manager.modules{
+                match module{
+                    Module::TtsModule(_) => tts.push(module.clone()),
+                    Module::DeviceModule(_) => audio_device.push(module.clone()),
                 }
             }
-        };
-        if let Some(module) = module_manager.selected_device_module.clone() {
-            let mut module = executor::block_on(module.write());
-            let module_type = module.get_module_type();
-            if ui.button(format!("Iniciar {module_type}")).clicked() {
-                if let Err(e) = runtime.block_on(module.start()) {
-                    module_manager.error(format!(
-                        "Failed to start {module_type}!",
-                    ));
-                    log::error!("{e}");
-                }
+
+            // Get TTS Module
+            if let Err(e) = show_module_options_widget(
+                module_manager,
+                "TTS Module".to_string(),
+                module_manager.selected_tts_module.clone().map(Module::from),
+                tts,
+                ui,
+                config,
+                module_event_w
+            ).await{
+                log::error!("{e}");
             }
-        };
+
+
+            // Get Audio Device Module
+            if let Err(e) = show_module_options_widget(
+                module_manager,
+                "Audio Device Module".to_string(),
+                module_manager.selected_device_module.clone().map(Module::from),
+                audio_device,
+                ui,
+                config,
+                module_event_w
+            ).await{
+                log::error!("{e}");
+            }
+
+        });
     }
+}
+
+pub async fn show_module_options_widget(
+    module_manager: &mut ResMut<'_, ModuleManager>,
+    mut module_title: String,
+    selected_module: Option<Module>,
+    modules: Vec<Module>,
+    ui: &mut egui::Ui,
+    config: &mut VlConfig,
+    module_event_w: &mut EventWriter<'_, ModuleEvent>) -> anyhow::Result<()>
+{   
+    if selected_module.is_none(){
+        return Ok(());
+    }
+    let mut selected_module = selected_module.unwrap();
+
+    // Category Label
+    let selected_type  = selected_module.get_module_type();
+    let mut selected_name = selected_module.get_screen_name();
+    module_title = format!("{module_title} Selecionado: {selected_name}");
+    ui.label(module_title);
+
+    let mut did_module_change = false;
+    // Draw the options
+    for module in modules {
+        let text = module.get_screen_name();
+        let radio = ui.radio_value(
+            &mut selected_module,
+            module,
+            text,
+        );
+        if radio.clicked(){
+            did_module_change = true;
+            selected_name = selected_module.get_screen_name();
+        }
+    }
+
+    // Update the config with the selected module
+    if did_module_change{
+        config
+            .selected_modules
+            .insert(selected_type.to_owned(), selected_name.to_owned());
+        
+        module_manager.reload_config();
+        module_manager.update_selected_modules().await?;
+    }
+
+    // Add start modules buttons
+    let button = ui.button(format!("Iniciar {selected_type}")); 
+    if button.clicked() {
+        if let Err(e) = selected_module.start().await {
+            module_manager.error(format!(
+                "Failed to start {selected_name}!",
+            ));
+            log::error!("{e}");
+        }
+    }
+
+
+    Ok(())
+}

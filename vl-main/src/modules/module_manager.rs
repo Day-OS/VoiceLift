@@ -3,10 +3,14 @@ use super::base::tts_module::TtsModule;
 #[cfg(target_os = "linux")]
 use super::linux::linux_module;
 use crate::manager::Manager;
+use crate::modules::base::device_module;
+use crate::modules::base::i_module::IModule;
 use crate::modules::base::module::Module;
+use crate::modules::base::module::ModuleType;
+use crate::modules::base::tts_module;
+use crate::modules::linux::tts;
 use async_lock::RwLock;
 use bevy::ecs::resource::Resource;
-use bevy::platform::collections::HashMap;
 use bevy::time::Timer;
 use bevy::time::TimerMode;
 use bevy_egui::egui;
@@ -26,7 +30,7 @@ pub struct ModuleManager {
     pub file_dialog: Arc<RwLock<FileDialog>>,
     pub(super) toast: Toasts,
     pending_error_messages: Vec<String>,
-    pub(crate) modules: HashMap<String, Module>,
+    pub(crate) modules: Vec<Module>,
     pub(crate) selected_device_module:
         Option<Arc<RwLock<dyn DeviceModule>>>,
     pub(crate) selected_tts_module:
@@ -52,7 +56,7 @@ impl ModuleManager {
             config: app_config,
             toast: Toasts::default(),
             pending_error_messages: vec![],
-            modules: HashMap::new(),
+            modules: Vec::new(),
             selected_device_module: None,
             selected_tts_module: None,
             _timer: Timer::new(
@@ -71,19 +75,77 @@ impl ModuleManager {
 
             let tts = Module::TtsModule(linux_module.clone());
             let device = Module::DeviceModule(linux_module.clone());
-            self.modules
-                .insert(tts.get_module_type().to_owned(), tts);
-            self.modules
-                .insert(device.get_module_type().to_owned(), device);
-            self.selected_device_module = Some(linux_module.clone());
-            self.selected_tts_module = Some(linux_module.clone())
+            self.modules.push(tts);
+            self.modules.push(device);
         }
 
         // update config!
+        if let Err(e) = self.update_selected_modules().await {
+            log::error!("{e}");
+        }
 
         self.update_config().unwrap();
         self
     }
+
+    pub async fn update_selected_modules(
+        &mut self,
+    ) -> anyhow::Result<()> {
+        let config = self.config.read().await.read()?;
+        let tts_option =
+            config.selected_modules.get(tts_module::MODULE_TYPE);
+        let audio_device_option =
+            config.selected_modules.get(device_module::MODULE_TYPE);
+
+        match tts_option {
+            Some(option) => {
+                self.select_module_str(
+                    option.to_string(),
+                    ModuleType::TtsModule,
+                );
+            }
+            None => {
+                if let Some(option) =
+                    self.modules.iter().find_map(|module| {
+                        if module
+                            .is_module_type(&ModuleType::TtsModule)
+                        {
+                            Some(module.clone())
+                        } else {
+                            None
+                        }
+                    })
+                {
+                    self.select_module(option);
+                }
+            }
+        }
+        match audio_device_option {
+            Some(option) => {
+                self.select_module_str(
+                    option.to_string(),
+                    ModuleType::DeviceModule,
+                );
+            }
+            None => {
+                if let Some(option) =
+                    self.modules.iter().find_map(|module| {
+                        if module
+                            .is_module_type(&ModuleType::DeviceModule)
+                        {
+                            Some(module.clone())
+                        } else {
+                            None
+                        }
+                    })
+                {
+                    self.select_module(option);
+                }
+            }
+        }
+        Ok(())
+    }
+
     // #region Config
     pub fn update_config(&mut self) -> Result<(), ConfigError> {
         let config_clone = self.config.clone();
@@ -151,6 +213,23 @@ impl ModuleManager {
         self.update_config().unwrap();
     }
 
+    pub fn select_module_str(
+        &mut self,
+        module_name: String,
+        module_type: ModuleType,
+    ) -> bool {
+        let query = self.modules.iter().find(|module| {
+            module.get_screen_name() == module_name
+                && module.is_module_type(&module_type)
+        });
+
+        if query.is_none() {
+            return false;
+        }
+        self.select_module(query.unwrap().clone());
+        true
+    }
+
     pub fn is_started(&self) -> bool {
         let mut checks = vec![];
         if let Some(module) = &self.selected_device_module {
@@ -209,6 +288,7 @@ impl ModuleManager {
         }
 
         let config = config_result.unwrap();
+
         for device in config.devices.input_devices {
             if let Err(e) = module.link_device(device).await {
                 log::error!("{e}");
