@@ -39,7 +39,10 @@ pub trait Screen: Sync + Send {
     fn is_collapsable(&self) -> bool {
         true
     }
-    fn draw(&mut self, params: ScreenParameters);
+    fn draw(
+        &mut self,
+        params: ScreenParameters,
+    ) -> anyhow::Result<()>;
     fn get_screen_name(&self) -> &'static str {
         type_name::<Self>()
     }

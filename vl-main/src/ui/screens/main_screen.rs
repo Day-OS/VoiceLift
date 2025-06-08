@@ -205,7 +205,10 @@ impl Screen for MainScreen {
     fn uses_keyboard(&self) -> bool {
         true
     }
-    fn draw(&mut self, mut params: ScreenParameters) {
+    fn draw(
+        &mut self,
+        mut params: ScreenParameters,
+    ) -> std::result::Result<(), anyhow::Error> {
         let ui = params.ui;
         let style = ui.style_mut();
         let font_size = 18.0;
@@ -269,5 +272,6 @@ impl Screen for MainScreen {
                     executor::block_on(keyboard.write());
                 self.show_keyboard(tui, &mut keyboard);
             });
+        Ok(())
     }
 }

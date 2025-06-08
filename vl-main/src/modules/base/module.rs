@@ -4,14 +4,49 @@ use crate::modules::base::tts_module::TtsModule;
 use async_lock::RwLock;
 use busrt::async_trait;
 use futures::executor;
-use futures::future::BoxFuture;
 use std::fmt::Debug;
 use std::sync::Arc;
+
+pub enum ModuleType {
+    TtsModule,
+    DeviceModule,
+}
+
+impl From<Module> for ModuleType {
+    fn from(value: Module) -> Self {
+        match value {
+            Module::TtsModule(_) => Self::TtsModule,
+            Module::DeviceModule(_) => Self::DeviceModule,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Module {
     TtsModule(Arc<RwLock<dyn TtsModule>>),
     DeviceModule(Arc<RwLock<dyn DeviceModule>>),
+}
+
+impl PartialEq for Module {
+    fn eq(&self, other: &Self) -> bool {
+        let type_check =
+            self.get_module_type() == other.get_module_type();
+        let id_check =
+            self.get_screen_name() == other.get_screen_name();
+        type_check && id_check
+    }
+}
+
+impl From<Arc<RwLock<dyn TtsModule>>> for Module {
+    fn from(value: Arc<RwLock<dyn TtsModule>>) -> Self {
+        Self::TtsModule(value)
+    }
+}
+
+impl From<Arc<RwLock<dyn DeviceModule>>> for Module {
+    fn from(value: Arc<RwLock<dyn DeviceModule>>) -> Self {
+        Self::DeviceModule(value)
+    }
 }
 
 impl Module {
@@ -28,6 +63,13 @@ impl Module {
                 }
             }
         }
+    }
+    pub fn is_module_type(&self, module_type: &ModuleType) -> bool {
+        matches!(
+            (self, module_type),
+            (Module::TtsModule(_), ModuleType::TtsModule)
+                | (Module::DeviceModule(_), ModuleType::DeviceModule)
+        )
     }
 }
 
