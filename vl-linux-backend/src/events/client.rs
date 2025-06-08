@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde::Serialize;
-use vl_global::AudioDevices;
+use vl_global::audio_devices::AudioDevices;
 
 pub const METHOD_GET_DEVICES: &str = "get_devices";
 pub const METHOD_LINK_DEVICES: &str = "link_devices";

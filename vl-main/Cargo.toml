@@ -11,6 +11,7 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 anyhow = "1.0.98"
 async-lock = "3.4.0"
+async-trait = "0.1.88"
 bevy = { version = "0.16.0", default-features = false, features = [
     # "android-native-activity",
     # "android_shared_stdcxx",
@@ -32,10 +33,12 @@ bevy_egui = "0.34.1"
 busrt = { version = "0.4.19", features = ["ipc", "rpc"] }
 egui-file-dialog = "0.10.0"
 egui-notify = "0.19.0"
+egui_extras = "0.31.1"
 egui_material_icons = "0.3.0"
 egui_taffy = "0.7.0"
 egui_virtual_keyboard = { path = "../egui_virtual_keyboard" }
 futures = "0.3.31"
+indexmap = "2.9.0"
 jni = "0.21.1"
 log = "0.4.27"
 paste = "1.0.15"

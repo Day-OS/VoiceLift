@@ -1,29 +1,30 @@
-use crate::{
-    event_parameters::{self},
-    piper::PiperTTSManager,
-    PIPEWIRE_MANAGER,
-};
+use crate::{piper::PiperTTSManager, PIPEWIRE_MANAGER};
 use busrt::rpc::{RpcEvent, RpcResult};
+use events::client::{
+    RequestDeviceUnLinkage, ResponseDeviceUnLinkage,
+};
+use vl_linux_backend::events;
 
-fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
+fn _evt_unlink_devices(event: RpcEvent) -> Result<(), String> {
     // Verify if the event payload is of type RequestDevices
-    let event: event_parameters::RequestDeviceLinkage =
+    let event: RequestDeviceUnLinkage =
         rmp_serde::from_slice(event.payload()).map_err(|err| {
-            format!("Failed to deserialize request: {}", err)
+            format!("Failed to deserialize request: {err}")
         })?;
+
     // Get PipeWire Manager Instance
     let manager = PIPEWIRE_MANAGER
         .get()
         .ok_or("PipeWireManager not initialized")?
         .read()
         .map_err(|e| {
-            format!("Failed to lock PipeWireManager: {}", e)
+            format!("Failed to lock PipeWireManager: {e}")
         })?;
 
     let objects = manager.get_objects();
 
     let objects = objects.read().map_err(|e| {
-        format!("Failed to lock PipeWireObjects: {}", e)
+        format!("Failed to lock PipeWireObjects: {e}")
     })?;
 
     // Find Objects
@@ -35,20 +36,19 @@ fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
         .ok_or("Second device not found")?;
     drop(objects);
 
-    manager.link_nodes(first_device, second_device);
+    manager.unlink_nodes(first_device, second_device);
     drop(manager);
 
     Ok(())
 }
 
-pub fn evt_link_devices(event: RpcEvent) -> RpcResult {
-    let result = _evt_link_devices(event);
+pub fn evt_unlink_devices(event: RpcEvent) -> RpcResult {
+    let result = _evt_unlink_devices(event);
     if let Err(e) = result.clone() {
-        log::error!("Failed to link devices: {}", e);
+        log::error!("Failed to unlink devices: {e}");
     }
-    let response = rmp_serde::to_vec(
-        &event_parameters::ResponseDeviceLinkage { result },
-    )?;
+    let response =
+        rmp_serde::to_vec(&ResponseDeviceUnLinkage { result })?;
 
     Ok(Some(response))
 }

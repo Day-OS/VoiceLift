@@ -5,8 +5,9 @@
 #![feature(core_intrinsics)]
 
 use bevy::prelude::bevy_main;
-pub mod base_modules;
-pub mod desktop;
+pub mod events;
+pub mod manager;
+pub mod modules;
 pub mod ui;
 
 #[bevy_main]

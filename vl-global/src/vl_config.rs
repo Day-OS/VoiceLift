@@ -12,6 +12,8 @@ use homedir::my_home;
 
 use thiserror::Error;
 
+use crate::audio_devices::AudioDevices;
+
 #[derive(Error, Debug)]
 pub enum ConfigError {
     #[error("data store disconnected")]
@@ -135,6 +137,7 @@ impl ConfigManager {
 pub struct VlConfig {
     pub selected_modules: HashMap<String, String>,
     pub linux: Option<LinuxConfig>,
+    pub devices: AudioDevices,
 }
 
 impl Default for VlConfig {
@@ -142,6 +145,7 @@ impl Default for VlConfig {
         VlConfig {
             linux: Some(LinuxConfig::default()),
             selected_modules: HashMap::new(),
+            devices: AudioDevices::default(),
         }
     }
 }

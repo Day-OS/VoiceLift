@@ -572,6 +572,7 @@ dependencies = [
  "anyhow",
  "config",
  "homedir",
+ "indexmap",
  "serde",
  "thiserror",
  "toml",

@@ -1,24 +1,23 @@
 use std::sync::Arc;
 
 use async_lock::RwLock;
-use futures::future::BoxFuture;
+use busrt::async_trait;
 use vl_global::vl_config::ConfigManager;
 
-use super::IModule;
+use crate::modules::base::i_module::IModule;
 
 pub const MODULE_TYPE: &str = "TTS Module";
 
 /// Responsible for managing TTS
+#[async_trait]
 pub trait TtsModule: IModule {
-    fn speak(
+    async fn speak(
         &self,
         text: String,
         config: Arc<RwLock<ConfigManager>>,
-    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
+    ) -> anyhow::Result<()>;
 
-    fn stop_speaking(
-        &self,
-    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>>;
+    async fn stop_speaking(&self) -> anyhow::Result<()>;
 
     fn get_module_type(&self) -> &'static str {
         MODULE_TYPE
