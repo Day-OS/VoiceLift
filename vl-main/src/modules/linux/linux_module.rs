@@ -1,7 +1,6 @@
 use busrt::async_trait;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::RpcClient;
-use futures::future::BoxFuture;
 use std::fmt::Debug;
 use thiserror::Error;
 

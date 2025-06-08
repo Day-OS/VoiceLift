@@ -10,7 +10,7 @@ use bevy_tokio_tasks::TokioTasksRuntime;
 use vl_global::audio_devices::AudioDeviceType;
 
 use crate::{
-    modules::{linux::tts, module_manager::ModuleManager},
+    modules::module_manager::ModuleManager,
     ui::{
         screen_manager::ScreenManager,
         screens::{Screen, config_screen::ConfigScreen},

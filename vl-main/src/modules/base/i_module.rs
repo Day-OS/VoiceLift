@@ -1,5 +1,4 @@
 use busrt::async_trait;
-use futures::future::BoxFuture;
 use std::any::type_name;
 use std::fmt::Debug;
 

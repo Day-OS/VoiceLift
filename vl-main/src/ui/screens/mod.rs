@@ -2,26 +2,14 @@ use std::{intrinsics::type_name, sync::Arc};
 pub mod config_screen;
 pub mod main_screen;
 use async_lock::RwLock;
-use bevy::{
-    app::Update,
-    ecs::{
-        event::{Event, EventReader, EventWriter},
-        resource::Resource,
-        system::ResMut,
-    },
-    platform::collections::HashMap,
-};
-use bevy_egui::{egui, input::EguiInputEvent};
+use bevy::ecs::{event::EventWriter, system::ResMut};
+use bevy_egui::egui;
 use bevy_tokio_tasks::TokioTasksRuntime;
-use futures::executor::{self, block_on};
 
 use bevy_egui::egui::Vec2;
 
 use crate::{
-    events::{
-        module_event::ModuleEvent,
-        screen_event::{ScreenEvent, screen_event_handler},
-    },
+    events::{module_event::ModuleEvent, screen_event::ScreenEvent},
     modules::module_manager::ModuleManager,
 };
 
