@@ -2,9 +2,10 @@ use super::base::device_module::DeviceModule;
 use super::base::tts_module::TtsModule;
 #[cfg(target_os = "linux")]
 use super::linux::linux_module;
+use crate::events::module_event::ModuleEvent;
+use crate::manager::Manager;
 use crate::modules::base::i_module::IModule;
 use crate::modules::base::module::Module;
-use crate::modules::module_event::ModuleEvent;
 use async_lock::RwLock;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::resource::Resource;
@@ -16,6 +17,7 @@ use bevy_egui::egui;
 use egui_file_dialog::FileDialog;
 use egui_notify::Toasts;
 use futures::executor;
+use log::log;
 use std::sync::Arc;
 use std::time::Duration;
 use vl_global::audio_devices::AudioDevices;
@@ -29,12 +31,12 @@ pub struct ModuleManager {
     pub file_dialog: Arc<RwLock<FileDialog>>,
     pub(super) toast: Toasts,
     pending_error_messages: Vec<String>,
-    modules: HashMap<String, Module>,
+    pub(crate) modules: HashMap<String, Module>,
     pub(crate) selected_device_module:
         Option<Arc<RwLock<dyn DeviceModule>>>,
     pub(crate) selected_tts_module:
         Option<Arc<RwLock<dyn TtsModule>>>,
-    pub(super) _timer: Timer,
+    pub(crate) _timer: Timer,
     pub available_devices: AudioDevices,
 }
 
@@ -64,30 +66,6 @@ impl ModuleManager {
             ),
             available_devices: AudioDevices::default(),
         }
-    }
-    pub fn register_app_configs(&mut self, app: &mut bevy::app::App) {
-        #[cfg(target_os = "linux")]
-        {
-            use bevy::app::Update;
-
-            use crate::modules::linux::event_handlers::handler::{
-                LinuxModuleEventHandler,
-                linux_module_event_handler_update,
-            };
-            app.insert_resource(LinuxModuleEventHandler::new());
-            app.add_systems(
-                Update,
-                linux_module_event_handler_update,
-            );
-        }
-    }
-
-    pub fn reload_config(&mut self) {
-        let app_config = Arc::new(RwLock::new(
-            ConfigManager::new()
-                .expect("Config should be initialized"),
-        ));
-        self.config = app_config;
     }
 
     pub async fn initialize(&mut self) -> &mut Self {
@@ -140,7 +118,17 @@ impl ModuleManager {
                 .insert(type_name.to_owned(), name.to_owned());
         }
     }
+
+    pub fn reload_config(&mut self) {
+        let app_config = Arc::new(RwLock::new(
+            ConfigManager::new()
+                .expect("Config should be initialized"),
+        ));
+        self.config = app_config;
+    }
     // #endregion
+
+    // #region Error
 
     pub fn error(&mut self, text: String) {
         self.pending_error_messages.push(text);
@@ -153,6 +141,8 @@ impl ModuleManager {
         self.pending_error_messages.clear();
         self.toast.show(ctx);
     }
+
+    // #endregion
 
     pub fn select_module(&mut self, module: Module) {
         match module {
@@ -183,78 +173,84 @@ impl ModuleManager {
         checks.iter().all(|&b| b)
     }
 
-    pub fn show_configs(
+    async fn _get_linker_module(
         &mut self,
-        ui: &mut egui::Ui,
-        config: &mut VlConfig,
-        module_event_w: &mut EventWriter<ModuleEvent>,
-        tokio: &mut ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
-    ) {
-        let runtime = tokio.runtime();
-        // Organize modules in a hashmap.
-        let mut modules: HashMap<String, Vec<String>> =
-            HashMap::new();
+    ) -> Result<Arc<RwLock<dyn DeviceModule>>, &str> {
+        let module = &mut self.selected_device_module;
 
-        for (key, module) in &self.modules {
-            let mut list = modules.get_mut(key);
-            if list.is_none() {
-                modules.insert(key.clone(), vec![]);
-                list = modules.get_mut(key);
-            }
-            let list = list.unwrap();
-            list.push(module.get_screen_name().to_string());
+        if module.is_none() {
+            return Err(
+                "relink_all_devices called while there's no active device module",
+            );
+        }
+        let module_arc = module.clone().unwrap();
+
+        let result = module_arc.clone();
+        let module = module_arc.read().await;
+
+        if !module.is_capable_of_linking() {
+            return Err(
+                "relink_all_devices called while this device module is not capable of linking devices",
+            );
+        }
+        Ok(result)
+    }
+
+    pub async fn relink_all_devices(&mut self) {
+        let module = self._get_linker_module().await;
+        if let Err(e) = module {
+            log::error!("{e}");
+            return;
         }
 
-        // Draw the options
-        for (module_type, alternatives) in modules {
-            let selected_module =
-                config.selected_modules.get(&module_type);
-            if selected_module.is_none() {
-                continue;
-            }
-            let mut selected_module = selected_module.unwrap();
+        let module_arc = module.unwrap();
+        let module = module_arc.write().await;
 
-            ui.label(format!(
-                "{module_type} Selecionado: {selected_module}"
-            ));
-            for linker_option in &alternatives {
-                let text = linker_option.clone();
-                ui.radio_value(
-                    &mut selected_module,
-                    linker_option,
-                    text,
-                );
-            }
-            // Update the config with the selected linker
-            config
-                .selected_modules
-                .insert(module_type, selected_module.to_string());
+        let config_manager = self.config.read().await;
+        let config_result = config_manager.read();
+        if let Err(e) = config_result {
+            log::error!("{e}");
+            return;
         }
 
-        // Add start modules buttons
-        if let Some(module) = self.selected_tts_module.clone() {
-            let mut module = executor::block_on(module.write());
-            let module_type = module.get_module_type();
-            if ui.button(format!("Iniciar {module_type}")).clicked() {
-                if let Err(e) = runtime.block_on(module.start()) {
-                    self.error(format!(
-                        "Failed to start {module_type}!",
-                    ));
-                    log::error!("{e}");
-                }
+        let config = config_result.unwrap();
+        for device in config.devices.input_devices {
+            if let Err(e) = module.link_device(device).await {
+                log::error!("{e}");
             }
-        };
-        if let Some(module) = self.selected_device_module.clone() {
-            let mut module = executor::block_on(module.write());
-            let module_type = module.get_module_type();
-            if ui.button(format!("Iniciar {module_type}")).clicked() {
-                if let Err(e) = runtime.block_on(module.start()) {
-                    self.error(format!(
-                        "Failed to start {module_type}!",
-                    ));
-                    log::error!("{e}");
-                }
-            }
-        };
+        }
+    }
+
+    pub async fn unlink_device(&mut self, device: String) {
+        let module = self._get_linker_module().await;
+        if let Err(e) = module {
+            log::error!("{e}");
+            return;
+        }
+        let module_arc = module.unwrap();
+        let module = module_arc.write().await;
+
+        if let Err(e) = module.unlink_device(device).await {
+            log::error!("{e}");
+        }
+    }
+}
+
+impl Manager for ModuleManager {
+    fn modify_app(&mut self, app: &mut bevy::app::App) {
+        #[cfg(target_os = "linux")]
+        {
+            use bevy::app::Update;
+
+            use crate::modules::linux::event_handlers::handler::{
+                LinuxModuleEventHandler,
+                linux_module_event_handler_update,
+            };
+            app.insert_resource(LinuxModuleEventHandler::new());
+            app.add_systems(
+                Update,
+                linux_module_event_handler_update,
+            );
+        }
     }
 }

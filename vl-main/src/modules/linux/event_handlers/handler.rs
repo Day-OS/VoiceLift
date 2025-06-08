@@ -7,10 +7,9 @@ use busrt::{
     async_trait,
     rpc::{RpcEvent, RpcHandlers, RpcResult},
 };
-use vl_linux_backend::events;
 use vl_linux_backend::events::server::{self, ResponseServerEvent};
 
-use crate::modules::module_event::ModuleEvent;
+use crate::events::module_event::ModuleEvent;
 
 #[derive(Resource)]
 pub(crate) struct LinuxModuleEventHandler {

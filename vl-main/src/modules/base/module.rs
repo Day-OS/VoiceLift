@@ -2,6 +2,7 @@ use crate::modules::base::device_module::DeviceModule;
 use crate::modules::base::i_module::IModule;
 use crate::modules::base::tts_module::TtsModule;
 use async_lock::RwLock;
+use busrt::async_trait;
 use futures::executor;
 use futures::future::BoxFuture;
 use std::fmt::Debug;
@@ -30,6 +31,7 @@ impl Module {
     }
 }
 
+#[async_trait]
 impl IModule for Module {
     fn is_started(&self) -> bool {
         match self {
@@ -44,22 +46,18 @@ impl IModule for Module {
         }
     }
 
-    fn start(
-        &mut self,
-    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>> {
-        Box::pin(async move {
-            match self {
-                Module::TtsModule(rw_lock) => {
-                    let mut checks = rw_lock.write().await;
-                    checks.start().await?;
-                }
-                Module::DeviceModule(rw_lock) => {
-                    let mut checks = rw_lock.write().await;
-                    checks.start().await?;
-                }
+    async fn start(&mut self) -> anyhow::Result<()> {
+        match self {
+            Module::TtsModule(rw_lock) => {
+                let mut checks = rw_lock.write().await;
+                checks.start().await?;
             }
-            Ok(())
-        })
+            Module::DeviceModule(rw_lock) => {
+                let mut checks = rw_lock.write().await;
+                checks.start().await?;
+            }
+        }
+        Ok(())
     }
 
     fn get_screen_name(&self) -> &'static str {

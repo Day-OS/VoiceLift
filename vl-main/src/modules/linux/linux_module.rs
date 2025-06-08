@@ -1,3 +1,4 @@
+use busrt::async_trait;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::RpcClient;
 use futures::future::BoxFuture;
@@ -31,8 +32,7 @@ pub struct LinuxModule {
 }
 
 impl LinuxModule {
-    async fn new_client()
-    -> Result<RpcClient, Box<dyn std::error::Error>> {
+    async fn new_client() -> anyhow::Result<RpcClient> {
         let name = "voice-lift-device.client";
         // create a new client instance
         let config = Config::new("/tmp/voicelift.sock", name);
@@ -49,18 +49,16 @@ impl LinuxModule {
         Self { _client: None }
     }
 }
+
+#[async_trait]
 impl IModule for LinuxModule {
     fn is_started(&self) -> bool {
         self._client.is_some()
     }
 
-    fn start(
-        &mut self,
-    ) -> BoxFuture<Result<(), Box<dyn std::error::Error>>> {
-        Box::pin(async move {
-            self._client = Some(Self::new_client().await?);
-            Ok(())
-        })
+    async fn start(&mut self) -> anyhow::Result<()> {
+        self._client = Some(Self::new_client().await?);
+        Ok(())
     }
 }
 

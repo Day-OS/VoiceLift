@@ -3,14 +3,16 @@ use std::sync::Arc;
 #[cfg(target_os = "android")]
 use crate::android::keyboard::show_soft_input;
 use crate::{
-    modules::{
+    events::{
         module_event::{
             ModuleEvent, initialize_module_manager,
-            module_manager_event_handler, module_manager_ticker,
+            module_event_handler, module_manager_ticker,
         },
-        module_manager::{self, ModuleManager},
+        screen_event::ScreenEvent,
     },
-    ui::screens::ScreenParameters,
+    manager::Manager,
+    modules::module_manager::ModuleManager,
+    ui::{screen_manager::ScreenManager, screens::ScreenParameters},
 };
 
 use async_lock::RwLock;
@@ -32,8 +34,7 @@ use bevy_egui::{
 use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 
 use super::screens::{
-    ScreenEvent, ScreenManager, config_screen::ConfigScreen,
-    main_screen::MainScreen,
+    config_screen::ConfigScreen, main_screen::MainScreen,
 };
 
 pub fn run() {
@@ -41,20 +42,19 @@ pub fn run() {
     app.insert_resource(ClearColor(Color::NONE));
     let main_screen = MainScreen::default();
     let mut module_manager = ModuleManager::new();
-    module_manager.register_app_configs(&mut app);
+    module_manager.modify_app(&mut app);
     app.insert_resource(module_manager);
     let mut screen_manager =
         ScreenManager::new(Arc::new(RwLock::new(main_screen)));
     screen_manager
         .add_screen(Arc::new(RwLock::new(ConfigScreen::default())));
-    screen_manager.register_systems(&mut app);
+    screen_manager.modify_app(&mut app);
     app.insert_resource(screen_manager);
-    app.add_event::<ScreenEvent>();
     app.add_event::<ModuleEvent>();
     app.add_systems(Startup, initialize_module_manager);
     app.add_systems(
         Update,
-        (module_manager_event_handler, module_manager_ticker),
+        (module_event_handler, module_manager_ticker),
     );
     app.add_plugins(TokioTasksPlugin::default());
     app.add_plugins(

@@ -1,19 +1,19 @@
-use anyhow::Ok;
 use bevy::{
     ecs::{
         event::{Event, EventReader},
         system::{Res, ResMut},
     },
-    log::tracing::event,
+    tasks::block_on,
     time::Time,
 };
 use bevy_tokio_tasks::TokioTasksRuntime;
 use vl_global::audio_devices::AudioDeviceType;
 
 use crate::{
-    modules::module_manager::ModuleManager,
-    ui::screens::{
-        Screen, ScreenManager, config_screen::ConfigScreen,
+    modules::{linux::tts, module_manager::ModuleManager},
+    ui::{
+        screen_manager::ScreenManager,
+        screens::{Screen, config_screen::ConfigScreen},
     },
 };
 
@@ -30,23 +30,54 @@ pub struct UpdateDeviceSelectionEvent {
     pub name: String,
 }
 
+#[derive(Debug)]
+pub struct LinkAllEvent;
+
 pub fn initialize_module_manager(
     mut module_manager: ResMut<ModuleManager>,
     runtime: ResMut<TokioTasksRuntime>,
 ) {
     let runtime = runtime.runtime();
-    let result = runtime.block_on(module_manager.initialize());
-    let linker = result.selected_device_module.clone().unwrap();
-    let mut linker = runtime.block_on(linker.write());
-    let linker_start_result = runtime.block_on(linker.start());
-    if let Err(e) = linker_start_result {
-        log::error!("{e}");
-        let error = "Linker did not start".to_owned();
-        module_manager.error(error);
-    }
+    runtime.block_on(async {
+        module_manager.initialize().await;
+
+        // Enable device Module
+        if let Some(device_module) =
+            module_manager.selected_device_module.clone()
+        {
+            let mut device_module = device_module.write().await;
+            if !device_module.is_started() {
+                let result = device_module.start().await;
+
+                if let Err(e) = result {
+                    log::error!("{e}");
+                    let error = "Device Module error".to_owned();
+                    module_manager.error(error);
+                }
+            }
+        }
+        module_manager.relink_all_devices().await;
+
+        // Enable tts Module
+        if let Some(tts_module) =
+            module_manager.selected_tts_module.clone()
+        {
+            let mut tts_module = tts_module.write().await;
+
+            if !tts_module.is_started() {
+                let result = tts_module.start().await;
+
+                if let Err(e) = result {
+                    log::error!("{e}");
+                    let error = "TTS Module error".to_owned();
+                    module_manager.error(error);
+                }
+            }
+        }
+    });
 }
 
-pub fn module_manager_event_handler(
+pub fn module_event_handler(
     mut module_manager: ResMut<ModuleManager>,
     mut event_r: EventReader<ModuleEvent>,
     runtime: ResMut<TokioTasksRuntime>,
@@ -64,7 +95,7 @@ pub fn module_manager_event_handler(
                         &mut module_manager,
                         e,
                     )
-                    .await;
+                    .await
                 }
             }
             log::info!("{event:?}")
@@ -125,7 +156,7 @@ pub async fn handler_update_device_selection_event(
 ) {
     let config_arc = module_manager.config.clone();
     let mut config = config_arc.write().await;
-    config.modify_and_save(|config| {
+    let result = config.modify_and_save(|config| {
         let devices = &mut config.devices;
         let device_list = match event.device_type {
             AudioDeviceType::INPUT => &mut devices.input_devices,
@@ -133,15 +164,23 @@ pub async fn handler_update_device_selection_event(
         };
         if event.selected {
             device_list.push(event.name.clone());
-        } else {
-            if let Some(index) = device_list
-                .iter()
-                .position(|name| name.clone() == event.name)
-            {
-                device_list.remove(index);
-            }
+        } else if let Some(index) = device_list
+            .iter()
+            .position(|name| name.clone() == event.name)
+        {
+            device_list.remove(index);
+            block_on(
+                module_manager.unlink_device(event.name.clone()),
+            );
         }
         Ok(())
     });
+
+    if let Err(e) = result {
+        log::error!("{e}");
+        return;
+    }
+
     module_manager.reload_config();
+    module_manager.relink_all_devices().await;
 }

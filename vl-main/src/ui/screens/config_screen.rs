@@ -1,4 +1,6 @@
 
+use std::collections::HashMap;
+
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
@@ -15,8 +17,10 @@ use futures::executor;
 use vl_global::audio_devices::AudioDeviceStatus;
 use vl_global::audio_devices::AudioDevices;
 use egui_extras::{Column, TableBuilder};
-use crate::modules::module_event::ModuleEvent;
-use crate::modules::module_event::UpdateDeviceSelectionEvent;
+use vl_global::vl_config::VlConfig;
+use crate::events::module_event::ModuleEvent;
+use crate::events::module_event::UpdateDeviceSelectionEvent;
+use crate::modules::base::i_module::IModule;
 use crate::modules::module_manager::ModuleManager;
 use crate::ui::screens::ScreenParameters;
 
@@ -85,7 +89,7 @@ impl Screen for ConfigScreen {
                         |config: &mut vl_global::vl_config::VlConfig| {
                             ui.heading("Configurações");
 
-                            module_manager.show_configs(ui, config, &mut module_event_w, &mut tokio);
+                            show_configs(&mut module_manager, ui, config, &mut module_event_w, &mut tokio);
 
                             if let Some(linux) = &mut config.linux {
                                 ui.heading("Configurações do Linux Module");
@@ -214,50 +218,81 @@ impl ConfigScreen{
                 });
             }
         });
-
-        //for (device_type, status) in comparison.0 {
-            // let (id, name) = match device_type {
-            //     vl_global::audio_devices::AudioDeviceType::INPUT => ("input_panel", "Dispositivos de Entrada"),
-            //     vl_global::audio_devices::AudioDeviceType::OUTPUT => ("output_panel", "Dispositivos de Saída"),
-            // };
-
-            // egui::SidePanel::left(id).exact_width(100.).show_inside(ui, |ui| {
-            //     egui::ScrollArea::vertical().show(ui, |ui| {
-            //         let mut table = TableBuilder::new(ui)
-            //             .striped(true)
-            //             .resizable(false)
-            //             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            //             .column(Column::auto())
-            //             .column(
-            //                 Column::remainder()
-            //                     .at_least(40.0)
-            //                     .clip(true)
-            //                     .resizable(true),
-            //             )
-            //             .column(Column::auto())
-            //             .column(Column::remainder())
-            //             .column(Column::remainder())
-            //             .min_scrolled_height(0.0)
-            //             .max_scroll_height(available_height);
-
-            //         table.body(|mut body| {
-            //             for (status, devices) in status {
-            //                 let mut devices = devices.clone();
-            //                 devices.sort();
-            //                 for device in devices {
-            //                     body.row(18., |mut row| {
-            //                         row.col(|ui| {
-            //                             ui.label(":3");
-            //                         });
-            //                         row.col(|ui| {
-            //                             ui.label(device);
-            //                         });
-            //                     });
-            //                 }
-            //             }
-            //         });
-            //     })
-            // });
-        //}
     }
 }
+
+
+    pub fn show_configs(
+        module_manager: &mut ResMut<ModuleManager>,
+        ui: &mut egui::Ui,
+        config: &mut VlConfig,
+        module_event_w: &mut EventWriter<ModuleEvent>,
+        tokio: &mut ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
+    ) {
+        let runtime = tokio.runtime();
+        // Organize modules in a hashmap.
+        let mut modules: HashMap<String, Vec<String>> =
+            HashMap::new();
+
+        for (key, module) in &module_manager.modules {
+            let mut list = modules.get_mut(key);
+            if list.is_none() {
+                modules.insert(key.clone(), vec![]);
+                list = modules.get_mut(key);
+            }
+            let list = list.unwrap();
+            list.push(module.get_screen_name().to_string());
+        }
+
+        // Draw the options
+        for (module_type, alternatives) in modules {
+            let selected_module =
+                config.selected_modules.get(&module_type);
+            if selected_module.is_none() {
+                continue;
+            }
+            let mut selected_module = selected_module.unwrap();
+
+            ui.label(format!(
+                "{module_type} Selecionado: {selected_module}"
+            ));
+            for linker_option in &alternatives {
+                let text = linker_option.clone();
+                ui.radio_value(
+                    &mut selected_module,
+                    linker_option,
+                    text,
+                );
+            }
+            // Update the config with the selected linker
+            config
+                .selected_modules
+                .insert(module_type, selected_module.to_string());
+        }
+
+        // Add start modules buttons
+        if let Some(module) = module_manager.selected_tts_module.clone() {
+            let mut module = executor::block_on(module.write());
+            let module_type = module.get_module_type();
+            if ui.button(format!("Iniciar {module_type}")).clicked() {
+                if let Err(e) = runtime.block_on(module.start()) {
+                    module_manager.error(format!(
+                        "Failed to start {module_type}!",
+                    ));
+                    log::error!("{e}");
+                }
+            }
+        };
+        if let Some(module) = module_manager.selected_device_module.clone() {
+            let mut module = executor::block_on(module.write());
+            let module_type = module.get_module_type();
+            if ui.button(format!("Iniciar {module_type}")).clicked() {
+                if let Err(e) = runtime.block_on(module.start()) {
+                    module_manager.error(format!(
+                        "Failed to start {module_type}!",
+                    ));
+                    log::error!("{e}");
+                }
+            }
+        };
+    }
