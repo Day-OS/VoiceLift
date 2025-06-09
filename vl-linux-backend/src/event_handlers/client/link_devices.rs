@@ -26,12 +26,18 @@ fn _evt_link_devices(event: RpcEvent) -> Result<(), String> {
     })?;
 
     // Find Objects
+    let first_name = PiperTTSManager::get_handle_name();
+    let second_name = event.target_device;
+    let err_description = format!(
+        "while trying to link {first_name} <==> {second_name}"
+    );
     let first_device = objects
-        .find_node_id_by_name(&PiperTTSManager::get_handle_name())
+        .find_node_id_by_name(&first_name)
         .ok_or("First device not found")?;
-    let second_device = objects
-        .find_node_id_by_name(&event.target_device)
-        .ok_or("Second device not found")?;
+    let second_device =
+        objects.find_node_id_by_name(&second_name).ok_or(format!(
+            "Second device not found {err_description}"
+        ))?;
     drop(objects);
 
     manager.link_nodes(first_device, second_device);

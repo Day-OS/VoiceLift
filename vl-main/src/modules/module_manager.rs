@@ -8,7 +8,6 @@ use crate::modules::base::i_module::IModule;
 use crate::modules::base::module::Module;
 use crate::modules::base::module::ModuleType;
 use crate::modules::base::tts_module;
-use crate::modules::linux::tts;
 use async_lock::RwLock;
 use bevy::ecs::resource::Resource;
 use bevy::time::Timer;
@@ -19,7 +18,9 @@ use egui_notify::Toasts;
 use futures::executor;
 use std::sync::Arc;
 use std::time::Duration;
-use vl_global::audio_devices::AudioDevices;
+use vl_global::audio_devices::AudioDeviceStatus;
+use vl_global::audio_devices::AudioDeviceType;
+use vl_global::audio_devices::AudioDevicesComparison;
 use vl_global::vl_config::ConfigError;
 use vl_global::vl_config::ConfigManager;
 use vl_global::vl_config::VlConfig;
@@ -36,7 +37,7 @@ pub struct ModuleManager {
     pub(crate) selected_tts_module:
         Option<Arc<RwLock<dyn TtsModule>>>,
     pub(crate) _timer: Timer,
-    pub available_devices: AudioDevices,
+    pub available_devices: Option<AudioDevicesComparison>,
 }
 
 impl Default for ModuleManager {
@@ -63,7 +64,7 @@ impl ModuleManager {
                 Duration::from_secs(1),
                 TimerMode::Repeating,
             ),
-            available_devices: AudioDevices::default(),
+            available_devices: None,
         }
     }
 
@@ -260,6 +261,7 @@ impl ModuleManager {
         let module_arc = module.clone().unwrap();
 
         let result = module_arc.clone();
+
         let module = module_arc.read().await;
 
         if !module.is_capable_of_linking() {
@@ -287,11 +289,22 @@ impl ModuleManager {
             return;
         }
 
-        let config = config_result.unwrap();
-
-        for device in config.devices.input_devices {
-            if let Err(e) = module.link_device(device).await {
-                log::error!("{e}");
+        if let Some(devices_comparison) = &self.available_devices {
+            if let Some(devices) =
+                devices_comparison.0.get(&AudioDeviceType::INPUT)
+            {
+                if let Some(available_and_selected) = devices
+                    .get(&AudioDeviceStatus::SelectedAndAvailable)
+                {
+                    for device in available_and_selected {
+                        if let Err(e) = module
+                            .link_device(device.to_string())
+                            .await
+                        {
+                            log::error!("{e}");
+                        }
+                    }
+                }
             }
         }
     }

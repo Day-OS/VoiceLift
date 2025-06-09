@@ -24,7 +24,7 @@ pub trait DeviceModule: IModule {
 
     async fn link_device(
         &self,
-        target_device: String,
+        _target_device: String,
     ) -> anyhow::Result<()> {
         panic!(
             "{}",
@@ -34,7 +34,7 @@ pub trait DeviceModule: IModule {
 
     async fn unlink_device(
         &self,
-        target_device: String,
+        _target_device: String,
     ) -> anyhow::Result<()> {
         panic!(
             "{}",
