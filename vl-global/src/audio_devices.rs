@@ -11,7 +11,7 @@ pub struct AudioDevices {
     pub output_devices: Vec<String>,
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub enum AudioDeviceStatus {
     SelectedAndAvailable,
     NotSelectedButAvailable,
@@ -34,12 +34,41 @@ pub enum AudioDeviceType {
     OUTPUT,
 }
 
+#[derive(Debug, Clone)]
 pub struct AudioDevicesComparison(
     pub  IndexMap<
         AudioDeviceType,
         IndexMap<AudioDeviceStatus, Vec<String>>,
     >,
 );
+
+impl AudioDevicesComparison {
+    pub fn are_there_reconnected_devices(
+        old: &Self,
+        new: &Self,
+    ) -> bool {
+        for (audio_type, old_status) in &old.0 {
+            let new_status = new.0.get(audio_type).unwrap();
+
+            // Verify each other
+            let were_not_available = old_status
+                .get(&AudioDeviceStatus::SelectedButNotAvailable)
+                .unwrap();
+
+            let are_available_now = new_status
+                .get(&AudioDeviceStatus::SelectedAndAvailable)
+                .unwrap();
+
+            if were_not_available
+                .iter()
+                .any(|device| are_available_now.contains(device))
+            {
+                return true;
+            }
+        }
+        false
+    }
+}
 
 impl AudioDevices {
     fn _compare_lists(

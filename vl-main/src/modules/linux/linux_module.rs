@@ -2,28 +2,10 @@ use busrt::async_trait;
 use busrt::ipc::{Client, Config};
 use busrt::rpc::RpcClient;
 use std::fmt::Debug;
-use thiserror::Error;
 
 use crate::modules::base::i_module::IModule;
+use crate::modules::linux::error::LinuxModuleError;
 use crate::modules::linux::event_handlers;
-
-#[derive(Error, Debug)]
-enum LinuxModuleError {
-    #[error(
-        "Failed to connect into the Linux Backend Socket. Reason: {0}"
-    )]
-    FailedToConnectIntoSocket(String),
-    #[error("Linux Backend Service was not started")]
-    BackendServiceNotStarted,
-    #[error("Failed to get devices: {0}")]
-    FailedToGetDevices(String),
-    #[error("Failed to link: {0}")]
-    FailedToLink(String),
-    #[error("Failed to unlink: {0}")]
-    FailedToUnlink(String),
-    #[error("Failed to initialize speaking: {0}")]
-    FailedToSpeak(String),
-}
 
 /// Resposible for linking devices in Linux with the help of a backend (vl-linux-backend)
 pub struct LinuxModule {

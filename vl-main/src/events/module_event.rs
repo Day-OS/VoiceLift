@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use async_lock::RwLock;
 use bevy::{
     ecs::{
         event::{Event, EventReader},
@@ -7,14 +10,16 @@ use bevy::{
     time::Time,
 };
 use bevy_tokio_tasks::TokioTasksRuntime;
-use vl_global::audio_devices::AudioDeviceType;
+use vl_global::{
+    audio_devices::{
+        AudioDeviceType, AudioDevices, AudioDevicesComparison,
+    },
+    vl_config::ConfigManager,
+};
 
 use crate::{
     modules::module_manager::ModuleManager,
-    ui::{
-        screen_manager::ScreenManager,
-        screens::{Screen, config_screen::ConfigScreen},
-    },
+    ui::screen_manager::ScreenManager,
 };
 
 #[derive(Event, Debug)]
@@ -98,7 +103,6 @@ pub fn module_event_handler(
                     .await
                 }
             }
-            log::info!("{event:?}")
         }
     });
 }
@@ -108,26 +112,32 @@ pub fn module_manager_ticker(
     mut module_manager: ResMut<ModuleManager>,
     time: Res<Time>,
     tokio: ResMut<TokioTasksRuntime>,
-    screen: ResMut<ScreenManager>,
+    _screen: ResMut<ScreenManager>,
 ) {
+    let config: std::sync::Arc<
+        async_lock::RwLock<vl_global::vl_config::ConfigManager>,
+    > = module_manager.config.clone();
     let timer = &mut module_manager._timer;
     timer.tick(time.delta());
 
     if timer.finished() {
         let runtime = tokio.runtime();
         runtime.block_on(async {
-            get_available_devices(module_manager, screen).await;
+            get_available_devices(module_manager, config).await;
         });
     }
 }
 
 async fn get_available_devices(
     mut module_manager: ResMut<'_, ModuleManager>,
-    screen: ResMut<'_, ScreenManager>,
+    config: Arc<RwLock<ConfigManager>>,
 ) {
-    if screen.current_screen_name() != ConfigScreen::get_name() {
+    let config_result = config.read().await.read();
+    if let Err(e) = config_result {
+        log::error!("{e}");
         return;
     }
+    let config = config_result.unwrap();
     let selected_device_module =
         module_manager.selected_device_module.clone();
     if selected_device_module.is_none() {
@@ -141,13 +151,38 @@ async fn get_available_devices(
     }
 
     let devices = module.get_devices().await;
+
+    // for some reason this module don't get dropped here if you don't order it to.
+    // if you remove this line, the program will just hang forever lol
+    drop(module);
+
     if let Err(e) = devices {
         log::error!("{e}");
         return;
     }
     let devices = devices.unwrap();
 
-    module_manager.available_devices = devices;
+    let comparison =
+        AudioDevices::compare_lists(&devices, &config.devices);
+
+    // Verify if there are new connections that should be remade
+    // For example: If a screen was suddenly reopened
+    let mut needs_relinking = false;
+    if let Some(current_devices) =
+        &module_manager.available_devices.clone()
+    {
+        if AudioDevicesComparison::are_there_reconnected_devices(
+            current_devices,
+            &comparison,
+        ) {
+            needs_relinking = true;
+        }
+    }
+
+    module_manager.available_devices = Some(comparison);
+    if needs_relinking {
+        module_manager.relink_all_devices().await;
+    }
 }
 
 pub async fn handler_update_device_selection_event(

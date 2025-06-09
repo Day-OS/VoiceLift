@@ -80,7 +80,9 @@ impl ScreenManager {
             executor::block_on(self.selected_screen.write());
         params.module_manager._throw_error_message(params.ctx);
 
-        selected_screen.draw(params);
+        if let Err(e) = selected_screen.draw(params) {
+            log::error!("{e}")
+        }
     }
 
     pub fn get_size(&self) -> Vec2 {

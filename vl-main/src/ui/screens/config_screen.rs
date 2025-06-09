@@ -1,10 +1,7 @@
 
-use std::collections::HashMap;
 use std::sync::Arc;
-
 use anyhow::Ok;
 use async_lock::RwLock;
-use bevy::audio;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
 use bevy_egui::egui;
@@ -19,9 +16,7 @@ use egui_taffy::taffy::AlignItems;
 use egui_taffy::taffy::Style;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
-use indexmap::IndexMap;
 use vl_global::audio_devices::AudioDeviceStatus;
-use vl_global::audio_devices::AudioDevices;
 use egui_extras::{Column, TableBuilder};
 use vl_global::vl_config::VlConfig;
 use crate::events::module_event::ModuleEvent;
@@ -95,11 +90,11 @@ impl Screen for ConfigScreen {
                         |config: &mut vl_global::vl_config::VlConfig| {
                             ui.heading("Configurações");
 
-                            self.show_modules_widget(&mut module_manager, ui, config, &mut module_event_w, &mut tokio);
+                            self.show_modules_widget(&mut module_manager, ui, config, &mut tokio);
                             
                             self.show_linux_tts_widget(ui, file_dialog.clone(), config);
                             
-                            self.show_devices_widget(ui, &mut module_manager, &mut module_event_w, config);
+                            self.show_devices_widget(ui, &mut module_manager, &mut module_event_w);
                             Ok(())
                         },
                     ).unwrap();
@@ -117,10 +112,11 @@ impl ConfigScreen{
         ui: &mut egui::Ui,
         module_manager: &mut ResMut<'_, ModuleManager>,
         module_event_w: &mut EventWriter<'_, ModuleEvent>,
-        config: &mut vl_global::vl_config::VlConfig,
     ){
-        let devices = module_manager.available_devices.clone();
-        let comparison = AudioDevices::compare_lists(&devices, &config.devices);
+        if module_manager.available_devices.is_none(){
+            return;
+        }
+        let comparison = module_manager.available_devices.clone().unwrap();
         tui(ui, ui.id().with("devices_panel")).reserve_available_space().style(Style{
             flex_direction: taffy::FlexDirection::Row,
             min_size: taffy::Size {
@@ -241,7 +237,6 @@ impl ConfigScreen{
         module_manager: &mut ResMut<ModuleManager>,
         ui: &mut egui::Ui,
         config: &mut VlConfig,
-        module_event_w: &mut EventWriter<ModuleEvent>,
         tokio: &mut ResMut<bevy_tokio_tasks::TokioTasksRuntime>,
     ) {
         let runtime = tokio.runtime();
@@ -265,7 +260,6 @@ impl ConfigScreen{
                 tts,
                 ui,
                 config,
-                module_event_w
             ).await{
                 log::error!("{e}");
             }
@@ -279,7 +273,6 @@ impl ConfigScreen{
                 audio_device,
                 ui,
                 config,
-                module_event_w
             ).await{
                 log::error!("{e}");
             }
@@ -295,7 +288,7 @@ pub async fn show_module_options_widget(
     modules: Vec<Module>,
     ui: &mut egui::Ui,
     config: &mut VlConfig,
-    module_event_w: &mut EventWriter<'_, ModuleEvent>) -> anyhow::Result<()>
+) -> anyhow::Result<()>
 {   
     if selected_module.is_none(){
         return Ok(());
