@@ -1,25 +1,21 @@
 use core::f32;
-use std::sync::Arc;
 
-use crate::modules::base::tts_module::TtsModule;
-use crate::modules::module_manager::ModuleManager;
+use crate::events::module_event::ModuleEvent;
 use crate::ui::screens::ScreenParameters;
 use crate::ui::virtual_keyboard::Keyboard;
-use async_lock::RwLock;
+use bevy::app::AppExit;
 use bevy::ecs::event::EventWriter;
-use bevy::ecs::system::ResMut;
+use bevy::input::keyboard::KeyCode;
 use bevy_egui::egui;
 use bevy_egui::egui::Button;
 use bevy_egui::egui::Color32;
 use bevy_egui::egui::FontId;
 use bevy_egui::egui::Vec2;
-use bevy_tokio_tasks::TokioTasksRuntime;
 use egui_taffy::taffy::prelude::auto;
 use egui_taffy::taffy::prelude::length;
 use egui_taffy::taffy::prelude::percent;
 use egui_taffy::{TuiBuilderLogic, taffy, tui};
 use futures::executor;
-use vl_global::vl_config::ConfigManager;
 
 use super::Screen;
 use super::ScreenEvent;
@@ -75,8 +71,7 @@ impl MainScreen {
         &self,
         tui: &mut egui_taffy::Tui,
         button_width: f32,
-        tokio: &ResMut<TokioTasksRuntime>,
-        module_manager: &ResMut<ModuleManager>,
+        mut module_event_w: EventWriter<'_, ModuleEvent>,
     ) {
         tui.style(taffy::Style {
             flex_direction: taffy::FlexDirection::Row,
@@ -98,29 +93,8 @@ impl MainScreen {
                     )
                     .clicked()
                 {
-                    async fn speak(
-                        module: Arc<RwLock<dyn TtsModule>>,
-                        text: String,
-                        config: Arc<RwLock<ConfigManager>>,
-                    ) {
-                        let module = module.read().await;
-                        if let Err(e) = module.stop_speaking().await{
-                            log::error!("Error while trying to stop the current audio {e}");
-                        };
-                        if let Err(e) = module.speak(text, config).await {
-                            log::error!("Error while trying to reproduce TTS {e}");
-                        }
-                    }
-                    let runtime = tokio.runtime();
-                    if let Some(tts_module) =
-                        &module_manager.selected_tts_module
-                    {
-                        runtime.spawn(speak(
-                            tts_module.clone(),
-                            self.text.clone(),
-                            module_manager.config.clone(),
-                        ));
-                    }
+                    module_event_w
+                        .write(ModuleEvent::Speak(self.text.clone()));
                 }
             })
         });
@@ -209,6 +183,21 @@ impl Screen for MainScreen {
         &mut self,
         mut params: ScreenParameters,
     ) -> std::result::Result<(), anyhow::Error> {
+        // Handle keys
+        for keys in params.keys.get_just_pressed() {
+            match keys {
+                KeyCode::Escape => {
+                    params.app_exit_w.write(AppExit::Success);
+                }
+                KeyCode::Enter => {
+                    params
+                        .module_event_w
+                        .write(ModuleEvent::Speak(self.text.clone()));
+                }
+                _ => {}
+            }
+        }
+
         let ui = params.ui;
         let style = ui.style_mut();
         let font_size = 18.0;
@@ -264,8 +253,7 @@ impl Screen for MainScreen {
                     self.show_run_button(
                         tui,
                         button_width,
-                        &params.runtime,
-                        &params.module_manager,
+                        params.module_event_w,
                     );
                 });
                 let mut keyboard =

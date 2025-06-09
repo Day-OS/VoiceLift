@@ -2,7 +2,14 @@ use std::{intrinsics::type_name, sync::Arc};
 pub mod config_screen;
 pub mod main_screen;
 use async_lock::RwLock;
-use bevy::ecs::{event::EventWriter, system::ResMut};
+use bevy::{
+    app::AppExit,
+    ecs::{
+        event::EventWriter,
+        system::{Res, ResMut},
+    },
+    input::{ButtonInput, keyboard::KeyCode},
+};
 use bevy_egui::egui;
 use bevy_tokio_tasks::TokioTasksRuntime;
 
@@ -24,6 +31,8 @@ pub struct ScreenParameters<'w> {
     pub work_area: Vec2,
     pub keyboard: Arc<RwLock<Keyboard>>,
     pub runtime: ResMut<'w, TokioTasksRuntime>,
+    pub keys: Res<'w, ButtonInput<KeyCode>>,
+    pub app_exit_w: EventWriter<'w, AppExit>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -43,6 +52,7 @@ pub trait Screen: Sync + Send {
         &mut self,
         params: ScreenParameters,
     ) -> anyhow::Result<()>;
+
     fn get_screen_name(&self) -> &'static str {
         type_name::<Self>()
     }

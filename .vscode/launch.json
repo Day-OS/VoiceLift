@@ -8,7 +8,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug",
-            "program": "${workspaceFolder}/<executable file>",
+            "program": "${workspaceFolder}/vl-main/target/debug/vl-main",
             "args": [],
             "cwd": "${workspaceFolder}"
         }

@@ -95,9 +95,6 @@ pub fn run() {
         enable_multipass_for_primary_context: true,
     })
     .add_systems(EguiContextPass, egui_screen);
-    // .add_systems(Update, keyboard_test)
-    // .insert_resource(WinitSettings::mobile())
-    // .add_event::<VirtualKeyboardEvent>()
     app.sub_app_mut(RenderApp).insert_resource(
         GpuPreprocessingSupport {
             max_supported_mode: GpuPreprocessingMode::None,
@@ -106,6 +103,7 @@ pub fn run() {
     app.run();
 }
 
+#[allow(clippy::too_many_arguments)]
 fn egui_screen(
     mut contexts: EguiContexts,
     module_manager: ResMut<ModuleManager>,
@@ -114,6 +112,8 @@ fn egui_screen(
     screen_event_w: EventWriter<ScreenEvent>,
     module_event_w: EventWriter<ModuleEvent>,
     runtime: ResMut<TokioTasksRuntime>,
+    keys: Res<ButtonInput<KeyCode>>,
+    app_exit_w: EventWriter<AppExit>,
 ) {
     // window.mode =
     // WindowMode::BorderlessFullscreen(MonitorSelection::Current);
@@ -166,6 +166,8 @@ fn egui_screen(
                 keyboard: screen.keyboard.clone(),
                 runtime,
                 work_area: screen_size,
+                keys,
+                app_exit_w,
             };
             screen.draw(params);
         });
