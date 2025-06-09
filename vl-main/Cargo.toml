@@ -25,6 +25,7 @@ bevy = { version = "0.16.0", default-features = false, features = [
     "webgl2",
     "x11",
     # "wayland",
+    "multi_threaded",
     "zstd",
     "tonemapping_luts",
 ] }

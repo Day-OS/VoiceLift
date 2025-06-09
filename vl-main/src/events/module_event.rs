@@ -26,6 +26,7 @@ use crate::{
 pub enum ModuleEvent {
     LoadModule(String),
     UpdateDeviceSelection(UpdateDeviceSelectionEvent),
+    Speak(String),
 }
 
 #[derive(Debug)]
@@ -101,6 +102,9 @@ pub fn module_event_handler(
                         e,
                     )
                     .await
+                }
+                ModuleEvent::Speak(text) => {
+                    module_manager.speak(text.to_string()).await
                 }
             }
         }
@@ -185,6 +189,8 @@ async fn get_available_devices(
     }
 }
 
+/// Modify the configuration by adding or removing a device based on the `event` information
+/// and then save the updated configuration.
 pub async fn handler_update_device_selection_event(
     module_manager: &mut ResMut<'_, ModuleManager>,
     event: &UpdateDeviceSelectionEvent,

@@ -322,6 +322,25 @@ impl ModuleManager {
             log::error!("{e}");
         }
     }
+    /// Order the current tts module to play an audio from the text.
+    /// `WARNING: This should be called within a Tokio Runtime`
+    pub async fn speak(&mut self, text: String) {
+        if let Some(tts_module) = &self.selected_tts_module {
+            let module = tts_module.read().await;
+            if let Err(e) = module.stop_speaking().await {
+                log::error!(
+                    "Error while trying to stop the current audio {e}"
+                );
+            };
+            if let Err(e) =
+                module.speak(text, self.config.clone()).await
+            {
+                log::error!(
+                    "Error while trying to reproduce TTS {e}"
+                );
+            }
+        }
+    }
 }
 
 impl Manager for ModuleManager {

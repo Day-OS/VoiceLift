@@ -4,6 +4,7 @@ use anyhow::Ok;
 use async_lock::RwLock;
 use bevy::ecs::event::EventWriter;
 use bevy::ecs::system::ResMut;
+use bevy::input::keyboard::KeyCode;
 use bevy_egui::egui;
 use bevy_egui::egui::Color32;
 use bevy_egui::egui::RichText;
@@ -53,6 +54,15 @@ impl Screen for ConfigScreen {
         let mut _ctx = params.ctx;
         let work_area = params.work_area;
         let mut tokio = params.runtime;
+
+        // Handle keys
+        for keys in params.keys.get_just_pressed() {
+            if keys == &KeyCode::Escape {
+                screen_event_w.write(ScreenEvent::ScreenChangeEvent {
+                    screen_name: MainScreen::get_name().to_owned(),
+                });
+            }
+        }
 
 
         tui(ui, ui.id().with("demo"))

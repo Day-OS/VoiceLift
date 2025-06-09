@@ -20,8 +20,9 @@ impl TtsModule for LinuxModule {
         text: String,
         config: Arc<RwLock<ConfigManager>>,
     ) -> anyhow::Result<()> {
-        let config = config.read().await;
-        let config = config.read()?;
+        let config_lock = config.read().await;
+        let config = config_lock.read()?;
+        drop(config_lock);
         if config.linux.is_none() {
             return Err(
                 LinuxBackendError::ConfigSectionNotFound.into()
