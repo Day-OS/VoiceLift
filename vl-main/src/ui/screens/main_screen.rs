@@ -145,30 +145,27 @@ impl MainScreen {
         ui: &mut egui::Ui,
         screen_event_w: &mut EventWriter<ScreenEvent>,
     ) {
-        ui.menu_button(
-            egui_material_icons::icons::ICON_SETTINGS,
-            |ui| {
-                let keyboard = ui.button(format!(
-                    "{} Ativar teclado Virtual",
-                    egui_material_icons::icons::ICON_KEYBOARD
-                ));
-                if keyboard.clicked() {
-                    self.keyboard_enabled = !self.keyboard_enabled;
-                }
-                let preferences = ui.button(format!(
-                    "{} Preferências...",
-                    egui_material_icons::icons::ICON_SETTINGS
-                ));
-                if preferences.clicked() {
-                    screen_event_w.write(
-                        ScreenEvent::ScreenChangeEvent {
-                            screen_name: ConfigScreen::get_name()
-                                .to_owned(),
-                        },
-                    );
-                }
-            },
-        );
+        ui.menu_button(egui_material_icons::icons::ICON_MENU, |ui| {
+            let keyboard = ui.button(format!(
+                "{} Ativar teclado Virtual",
+                egui_material_icons::icons::ICON_KEYBOARD
+            ));
+            if keyboard.clicked() {
+                self.keyboard_enabled = !self.keyboard_enabled;
+            }
+            let preferences = ui.button(format!(
+                "{} Preferências...",
+                egui_material_icons::icons::ICON_SETTINGS
+            ));
+            if preferences.clicked() {
+                screen_event_w.write(
+                    ScreenEvent::ScreenChangeEvent {
+                        screen_name: ConfigScreen::get_name()
+                            .to_owned(),
+                    },
+                );
+            }
+        });
     }
 }
 
