@@ -154,7 +154,7 @@ impl MainScreen {
                 self.keyboard_enabled = !self.keyboard_enabled;
             }
             let preferences = ui.button(format!(
-                "{} Preferências...",
+                "{} Configurações...",
                 egui_material_icons::icons::ICON_SETTINGS
             ));
             if preferences.clicked() {
