@@ -2,10 +2,8 @@ use bevy::ecs::{
     event::{Event, EventReader},
     system::ResMut,
 };
-use bevy_tokio_tasks::TokioTasksRuntime;
 
 use crate::ui::screen_manager::ScreenManager;
-
 
 #[derive(Event)]
 pub enum ScreenEvent {
@@ -17,15 +15,12 @@ pub enum ScreenEvent {
 
 pub fn screen_event_handler(
     mut manager: ResMut<ScreenManager>,
-    tokio: ResMut<TokioTasksRuntime>,
     mut event_r: EventReader<ScreenEvent>,
 ) {
     if event_r.is_empty() {
         return;
     }
-    let runtime = tokio.runtime();
-    runtime.block_on(async {
-        
+
     for event in event_r.read() {
         match event {
             ScreenEvent::ScreenChangeEvent { screen_name } => {
@@ -40,6 +35,4 @@ pub fn screen_event_handler(
             }
         }
     }
-    });
-
 }
