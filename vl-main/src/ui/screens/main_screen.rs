@@ -153,11 +153,11 @@ impl MainScreen {
             if keyboard.clicked() {
                 self.keyboard_enabled = !self.keyboard_enabled;
             }
-            let preferences = ui.button(format!(
+            let config_button = ui.button(format!(
                 "{} Configurações...",
                 egui_material_icons::icons::ICON_SETTINGS
             ));
-            if preferences.clicked() {
+            if config_button.clicked() {
                 screen_event_w.write(
                     ScreenEvent::ScreenChangeEvent {
                         screen_name: ConfigScreen::get_name()
