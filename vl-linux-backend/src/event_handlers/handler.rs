@@ -15,8 +15,6 @@ pub(crate) struct EventHandler {}
 
 #[async_trait]
 impl RpcHandlers for EventHandler {
-    // RPC call handler. Will react to the "test" (any params) and "ping" (will parse params as
-    // msgpack and return the "message" field back) methods
     async fn handle_call(&self, event: RpcEvent) -> RpcResult {
         let parse_method = event.parse_method()?;
         let event_name = parse_method.to_owned();
